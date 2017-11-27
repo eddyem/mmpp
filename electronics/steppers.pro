@@ -1,4 +1,4 @@
-update=Чт 23 ноя 2017 08:44:17
+update=Пн 27 ноя 2017 21:22:37
 last_client=kicad
 [pcbnew]
 version=1
@@ -52,3 +52,4 @@ LibName12=texas
 LibName13=transistors
 LibName14=switches
 LibName15=drv8825
+LibName16=a3212lh
