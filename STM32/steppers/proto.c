@@ -27,8 +27,6 @@
 #include "string.h"
 #include "usart.h"
 
-#define SENDBUF() do{usart1_send_blocking(gettrbuf()); cleartrbuf();}while(0)
-
 static const char *eodata = "DATAEND";
 static const char *badcmd = "BADCMD";
 static const char *allok = "ALL OK";
@@ -158,6 +156,7 @@ typedef struct{
 } user_conf_descr;
 
 static const user_conf_descr descrarr[] = {
+    {"CONFSZ", &the_conf.userconf_sz},
     {"DEVID",  &the_conf.devID},
     {"V12NUM", &the_conf.v12numerator},
     {"V12DEN", &the_conf.v12denominator},
@@ -171,9 +170,6 @@ static const user_conf_descr descrarr[] = {
 
 static char *get_conf(){
     const user_conf_descr *curdesc = descrarr;
-    write2trbuf("DATAPOS=");
-    put_uint(the_conf.good_data_pos);
-    SENDBUF();
     do{
         write2trbuf(curdesc->fieldname);
         put2trbuf('=');
@@ -274,9 +270,9 @@ static char *setESWthres(char *str){
 }
 
 static char *get_temper(){
-    uint32_t t = getTemp();
+    int32_t t = getTemp();
     write2trbuf("TEMP=");
-    put_uint(t);
+    put_int(t);
     SENDBUF();
     return NULL;
 }

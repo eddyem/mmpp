@@ -47,6 +47,7 @@ void USART1_config();
 int usart1_getline(char **line);
 TXstatus usart1_send(char *str);
 #define usart1_send_blocking(str) do{}while(LINE_BUSY == usart1_send(str))
+#define SENDBUF() do{usart1_send_blocking(gettrbuf()); cleartrbuf();}while(0)
 
 #define cleartrbuf()  do{trbufidx = 0;}while(0)
 #define trbufisfull()  (trbufidx)

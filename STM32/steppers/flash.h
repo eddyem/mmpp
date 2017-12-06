@@ -26,7 +26,7 @@
 #define __FLASH_H__
 
 typedef struct{
-    uint32_t good_data_pos; // position of data (index of mostly left zero)
+    uint16_t userconf_sz; // size of data
     uint16_t devID; // device address (id)
     uint16_t ESW_thres; // ADC threshold for end-switches/Hall sensors
     // calibration values for current/voltage sensors

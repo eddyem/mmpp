@@ -38,7 +38,7 @@ typedef enum{
     ESW_ERROR
 } ESW_status;
 
-uint32_t getTemp();
+int32_t getTemp();
 uint32_t getVdd();
 uint32_t getVmot();
 uint32_t getImot();

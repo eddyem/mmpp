@@ -28,9 +28,10 @@
 
 // start of configuration data in flash (from 15kB, one kB size)
 #define FLASH_CONF_START_ADDR   ((uint32_t)0x08003C00)
+static const int maxnum = 1024 / sizeof(user_conf);
 
 user_conf the_conf = {
-     .good_data_pos = 0xffffffff
+     .userconf_sz = sizeof(user_conf)
     ,.devID = 0
     ,.v12numerator = 1
     ,.v12denominator = 1
@@ -41,66 +42,81 @@ user_conf the_conf = {
     ,.ESW_thres = 150
 };
 
-static int maxnum = 0x800 / sizeof(user_conf);
-
 static int erase_flash();
 
 static int get_gooddata(){
     user_conf *c = (user_conf*) FLASH_CONF_START_ADDR;
-    uint32_t datapos = c->good_data_pos;
-    if(datapos == 0xffffffff){ // virginity clear
-        return maxnum;
-    }
     // have data - move it to `the_conf`
-    if(maxnum > 32) maxnum = 32;
     int idx;
-    for(idx = 1; idx < maxnum; ++idx){ // find current settings index - first non-zero bit
-        if(datapos & 1<<idx){
-            break;
+//write2trbuf("get_gooddata()\n");
+    for(idx = 0; idx < maxnum; ++idx){ // find current settings index - first good
+        uint16_t sz = c[idx].userconf_sz;
+/*write2trbuf("idx=");
+put_int((int32_t) idx);
+write2trbuf(", sz=");
+put_uint((uint32_t) sz);
+write2trbuf(", devID=");
+put_uint((uint32_t) c[idx].devID);
+write2trbuf(", ESW_thres=");
+put_uint((uint32_t) c[idx].ESW_thres);
+SENDBUF();*/
+        if(sz != sizeof(user_conf)){
+            if(sz == 0xffff) break; // first clear
+            else{
+                return -2; // flash corrupt, need to erase
+            }
         }
     }
-    return idx-1;
+    return idx-1; // -1 if there's no data at all & flash is clear; maxnum-1 if flash is full
 }
 
 void get_userconf(){
     user_conf *c = (user_conf*) FLASH_CONF_START_ADDR;
     int idx = get_gooddata();
-    if(idx == maxnum) return;
+    if(idx < 0) return; // no data stored
     memcpy(&the_conf, &c[idx], sizeof(user_conf));
 }
 
 // store new configuration
 // @return 0 if all OK
 int store_userconf(){
-char buf[2] = {0,0};
     int ret = 0;
     user_conf *c = (user_conf*) FLASH_CONF_START_ADDR;
     int idx = get_gooddata();
-    if(idx == maxnum || idx == maxnum - 1){ // first run or there's no more place
+    if(idx == -2 || idx == maxnum - 1){ // data corruption or there's no more place
         idx = 0;
         if(erase_flash()) return 1;
     }else ++idx; // take next data position
-    if (FLASH->CR & FLASH_CR_LOCK){
+/*write2trbuf("store_userconf()\nidx=");
+put_int((int32_t) idx);
+SENDBUF();*/
+    if (FLASH->CR & FLASH_CR_LOCK){ // unloch flash
         FLASH->KEYR = FLASH_FKEY1;
         FLASH->KEYR = FLASH_FKEY2;
     }
-    the_conf.good_data_pos = 0xffffffff ^ (1<<idx); // write zero to corresponding position
     while (FLASH->SR & FLASH_SR_BSY);
-    FLASH->SR = FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPERR;
+    if(FLASH->SR & FLASH_SR_WRPERR) return 1; // write protection
+    FLASH->SR = FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPERR; // clear all flags
     FLASH->CR |= FLASH_CR_PG;
     uint16_t *data = (uint16_t*) &the_conf;
     uint16_t *address = (uint16_t*) &c[idx];
     uint32_t i, count = sizeof(user_conf) / 2;
     for (i = 0; i < count; ++i){
-        //*(volatile uint16_t*)(address + i) = (((uint8_t)data[i + 1]) << 8) | data[i];
         *(volatile uint16_t*)(address + i) = data[i];
-        //while (!(FLASH->SR & FLASH_SR_EOP));
-        while((FLASH->SR & FLASH_SR_BSY));
-buf[0] = '0' + i;
-usart1_send_blocking(buf);
-        if(FLASH->SR &  FLASH_SR_PGERR) ret = 1;
-buf[0] = ret + '0';
-usart1_send_blocking(buf);
+        while (FLASH->SR & FLASH_SR_BSY);
+        if(FLASH->SR &  FLASH_SR_PGERR) ret = 1; // program error - meet not 0xffff
+        else while (!(FLASH->SR & FLASH_SR_EOP));
+/*write2trbuf("write byte ");
+put_int((int32_t) i);
+write2trbuf(", write value=");
+put_uint(data[i]);
+write2trbuf(", read value=");
+put_uint(address[i]);
+SENDBUF();
+if(ret){
+write2trbuf("PGERR");
+SENDBUF();
+}*/
         FLASH->SR = FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPERR;
     }
     FLASH->CR &= ~(FLASH_CR_PG);
@@ -110,6 +126,8 @@ usart1_send_blocking(buf);
 
 static int erase_flash(){
     int ret = 0;
+/*write2trbuf("erase_flash()");
+SENDBUF();*/
     /* (1) Wait till no operation is on going */
     /* (2) Clear error & EOP bits */
     /* (3) Check that the Flash is unlocked */
