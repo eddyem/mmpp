@@ -20,6 +20,7 @@
  */
 
 #include "usart.h"
+#include "flash.h"
 #include <string.h> // memcpy
 
 extern volatile uint32_t Tms;
@@ -77,9 +78,9 @@ void USART1_config(){
     /* Enable the peripheral clock USART1 */
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     /* Configure USART1 */
-    /* (1) oversampling by 16, 115200 baud */
+    /* (1) oversampling by 16, set speed */
     /* (2) 8 data bit, 1 start bit, 1 stop bit, no parity */
-    USART1->BRR = 480000 / 1152; /* (1) */
+    USART1->BRR = 48000000 / the_conf.usartspd; /* (1) */
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE; /* (2) */
     /* polling idle frame Transmission */
     while(!(USART1->ISR & USART_ISR_TC)){}

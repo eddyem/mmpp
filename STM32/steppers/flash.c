@@ -30,16 +30,21 @@
 #define FLASH_CONF_START_ADDR   ((uint32_t)0x08003C00)
 static const int maxnum = 1024 / sizeof(user_conf);
 
+// all denominators except Vdd by default are 10 (as Vdd stored as V*100, other data as V*10)
 user_conf the_conf = {
      .userconf_sz = sizeof(user_conf)
     ,.devID = 0
     ,.v12numerator = 1
-    ,.v12denominator = 1
+    ,.v12denominator = 10
     ,.i12numerator = 1
     ,.i12denominator = 1
     ,.v33denominator = 1
     ,.v33numerator = 1
     ,.ESW_thres = 150
+    ,.usartspd = (uint32_t)115200
+    ,.motspd = {60, 60} // max speed: 3000/60 = 50 steps per second
+    ,.maxsteps = {0, 0} // max steps from point to point - infinity
+    ,.reverse = {0,0}   // set DIR to this value when moving to '+'
 };
 
 static int erase_flash();

@@ -25,6 +25,12 @@
 #include "adc.h"
 #include "usart.h"
 
+extern volatile uint32_t Tms; // time counter for 1-second Vdd measurement
+static uint32_t lastVddtime = 0; // Tms value of last Vdd measurement
+static uint32_t VddValue = 0; // value of Vdd * 100 (for more precision measurements)
+// check time of last Vdd measurement & refresh it value
+#define CHKVDDTIME() do{if(!VddValue || Tms < lastVddtime || Tms - lastVddtime > 999) getVdd();}while(0)
+
 /*
  * 0 - Steppers current
  * 1 - Input voltage 12V
@@ -91,7 +97,9 @@ void adc_setup(){
 
 // return MCU temperature (degrees of celsius)
 int32_t getTemp(){
-    int32_t temperature = (int32_t)ADC_array[6];
+    CHKVDDTIME();
+    // make correction on Vdd value
+    int32_t temperature = (int32_t)ADC_array[6] * VddValue / 330;
 write2trbuf("getTemp()\ncal30=");
 put_uint(*TEMP30_CAL_ADDR);
 write2trbuf(", cal110=");
@@ -99,7 +107,7 @@ put_uint(*TEMP110_CAL_ADDR);
 write2trbuf(", t=");
 put_int(temperature);
 SENDBUF();
-    temperature = ((int32_t) *TEMP30_CAL_ADDR - temperature);
+    temperature = (int32_t) *TEMP30_CAL_ADDR - temperature;
 put_int(temperature);
 SENDBUF();
     temperature *= (int32_t)(1100 - 300);
@@ -115,28 +123,59 @@ SENDBUF();
 //static uint32_t calval = 0;
 // return Vdd * 10 (V)
 uint32_t getVdd(){
+    #define ARRSZ (10)
+    static uint16_t arr[ARRSZ] = {0};
+    static int arridx = 0;
+    uint32_t v = ADC_array[7];
+    int i;
 write2trbuf("getVdd(), val=");
-put_uint(ADC_array[7]);
+put_uint(v);
 write2trbuf(", cal=");
 put_uint(*VREFINT_CAL_ADDR);
 SENDBUF();
+    if(arr[0] == 0){ // first run - fill all with current data
+write2trbuf("1st run");
+SENDBUF();
+        for(i = 0; i < ARRSZ; ++i) arr[i] = (uint16_t) v;
+    }else{
+write2trbuf("arridx=");
+put_int(arridx);
+SENDBUF();
+        arr[arridx++] = v;
+        v = 0; // now v is mean
+        if(arridx > ARRSZ-1) arridx = 0;
+        // calculate mean
+        for(i = 0; i < ARRSZ; ++i){
+write2trbuf("arr["); put2trbuf('0'+i); write2trbuf("]=");
+put_uint(arr[i]);
+SENDBUF();
+            v += arr[i];
+        }
+        v /= ARRSZ;
+write2trbuf("mean value: ");
+put_uint(v);
+SENDBUF();
+    }
   /*  if(!calval){
         calval = ((uint32_t) *VREFINT_CAL_ADDR) * VDD_CALIB;
         calval /= VDD_APPLI;
     } */
-    uint32_t vdd = ((uint32_t) *VREFINT_CAL_ADDR) * (uint32_t)33 * the_conf.v33numerator; // 3.3V
+    uint32_t vdd = ((uint32_t) *VREFINT_CAL_ADDR) * (uint32_t)330 * the_conf.v33numerator; // 3.3V
 put_uint(vdd);
 SENDBUF();
     //vdd /= calval * the_conf.v33denominator;
-    vdd /= ADC_array[7] * the_conf.v33denominator;
+    vdd /= v * the_conf.v33denominator;
 put_uint(vdd);
 SENDBUF();
-    return vdd;
+    lastVddtime = Tms;
+    VddValue = vdd;
+    return vdd/10;
 }
 
 // return value of 12V * 10 (V)
 uint32_t getVmot(){
-    uint32_t vmot = ADC_array[1] * getVdd() * the_conf.v12numerator;
+    CHKVDDTIME();
+    uint32_t vmot = ADC_array[1] * VddValue * the_conf.v12numerator;
     vmot >>= 12;
     vmot /= the_conf.v12denominator;
     return vmot;
@@ -144,7 +183,8 @@ uint32_t getVmot(){
 
 // return value of motors' current * 100 (A)
 uint32_t getImot(){
-    uint32_t vmot = ADC_array[0] * getVdd() * the_conf.i12numerator * 10;
+    CHKVDDTIME();
+    uint32_t vmot = ADC_array[0] * VddValue * the_conf.i12numerator;
     vmot >>= 12;
     vmot /= the_conf.i12denominator;
     return vmot;

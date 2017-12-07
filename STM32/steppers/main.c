@@ -24,6 +24,7 @@
 #include "adc.h"
 #include "flash.h"
 #include "proto.h"
+#include "steppers.h"
 
 volatile uint32_t Tms = 0;
 
@@ -59,6 +60,28 @@ static void gpio_setup(void){
     GPIOF->MODER = GPIO_MODER_MODER0_O | GPIO_MODER_MODER1_O;
 }
 
+void iwdg_setup(){
+    /* Enable the peripheral clock RTC */
+    /* (1) Enable the LSI (40kHz) */
+    /* (2) Wait while it is not ready */
+    RCC->CSR |= RCC_CSR_LSION; /* (1) */
+    while((RCC->CSR & RCC_CSR_LSIRDY) != RCC_CSR_LSIRDY); /* (2) */
+
+    /* Configure IWDG */
+    /* (1) Activate IWDG (not needed if done in option bytes) */
+    /* (2) Enable write access to IWDG registers */
+    /* (3) Set prescaler by 64 (1.6ms for each tick) */
+    /* (4) Set reload value to have a rollover each 2s */
+    /* (5) Check if flags are reset */
+    /* (6) Refresh counter */
+    IWDG->KR = IWDG_START; /* (1) */
+    IWDG->KR = IWDG_WRITE_ACCESS; /* (2) */
+    IWDG->PR = IWDG_PR_PR_1; /* (3) */
+    IWDG->RLR = 1250; /* (4) */
+    while(IWDG->SR); /* (5) */
+    IWDG->KR = IWDG_REFRESH; /* (6) */
+}
+
 int main(void){
     uint32_t lastT = 0;
     uint32_t ostctr = 0;
@@ -69,12 +92,15 @@ int main(void){
     char *txt = NULL;
     sysreset();
     SysTick_Config(6000, 1);
+    get_userconf();
     gpio_setup();
     adc_setup();
     USART1_config();
-    get_userconf();
+    stp_setup();
+    iwdg_setup();
     //pin_set(GPIOA, 1<<5); // clear extern LED
     while (1){
+        IWDG->KR = IWDG_REFRESH; // refresh watchdog
         if(lastT > Tms || Tms - lastT > 499){
             #ifdef EBUG
             pin_toggle(GPIOA, 1<<4); // blink by onboard LED once per second
@@ -93,19 +119,20 @@ int main(void){
             txt = "hello";
         }
         #endif
+        /*
         if(trbufisfull()){
             write2trbuf("ERR");
             usart1_send_blocking(gettrbuf());
         }
-        cleartrbuf();
+        cleartrbuf();*/
         if(txt){ // text waits for sending
             if(ALL_OK == usart1_send(txt)){
                 txt = NULL;
             }
         }
-        if(ostctr != Tms){
+        if(ostctr != Tms){ // check steppers not frequently than once in 1ms
             ostctr = Tms;
-            //
+            stp_process();
         }
     }
 }

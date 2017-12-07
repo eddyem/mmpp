@@ -26,6 +26,7 @@
 #include "flash.h"
 #include "string.h"
 #include "usart.h"
+#include "steppers.h"
 
 static const char *eodata = "DATAEND";
 static const char *badcmd = "BADCMD";
@@ -40,14 +41,18 @@ static const char *err = "ERR";
 static char *getnum(char *buf, int32_t *N);
 static char *get_something(char *str);
 static char *set_something(char *str);
+
 static char *get_status();
 static char *get_conf();
 static char *get_raw_adc();
 static char *get_ADCval(char *str);
+static char *get_temper();
+
 static char *setDenEn(uint8_t De, char *str);
 static char *setDevId(char *str);
 static char *setESWthres(char *str);
-static char *get_temper();
+static char *setUSARTspd(char *str);
+
 
 #define omitwsp(str) do{register char nxt; while((nxt = *str)){if(nxt != ' ' && nxt != '\t') break; else ++str;}}while(0)
 
@@ -70,11 +75,14 @@ char* process_command(char *cmdbuf){
         return "ALIVE";
     }
     switch (*str++){
-        case 'S': // set something
-            return set_something(str);
-        break;
         case 'G': // get something
             return get_something(str);
+        break;
+        case 'R':
+            NVIC_SystemReset();
+        break;
+        case 'S': // set something
+            return set_something(str);
         break;
         case 'W': // write flash
             if(store_userconf()) return ERR;
@@ -136,7 +144,7 @@ static char *get_something(char *str){
         case 'R': // get raw ADC values
             return get_raw_adc();
         break;
-        case 'S': // get status
+        case 'S': // get motors' status
             return get_status();
         break;
         case 'T':
@@ -147,6 +155,49 @@ static char *get_something(char *str){
 }
 
 static char *get_status(){
+    int i, j;
+    char str[3] = {0, '=', 0};
+    if(RCC->CSR & RCC_CSR_IWDGRSTF){ // watchdog reset occured
+        write2trbuf("WDGRESET=1");
+    }
+    if(RCC->CSR & RCC_CSR_SFTRSTF){ // software reset occured
+        write2trbuf("SOFTRESET=1");
+    }
+    RCC->CSR = RCC_CSR_RMVF; // clear reset flags
+    for(i = 0; i < 2; ++i){
+        write2trbuf("MOTOR"); str[0] = '0' + i;
+        write2trbuf(str);
+        if(stp_isactive(i)){
+            write2trbuf("MOV\nSTEPSLEFT");
+            write2trbuf(str);
+            put_uint(stp_stepsleft(i));
+        }else write2trbuf("STOP");
+        write2trbuf("POS");
+        write2trbuf(str);
+        put_int(stp_position(i));
+        SENDBUF();
+        for(j = 0; j < 2; ++j){
+            write2trbuf("ESW"); put2trbuf('0' + i);
+            put2trbuf('0' + j); put2trbuf('=');
+            ESW_status stat = eswStatus(i, j);
+            const char *etxt = "ERR";
+            switch(stat){
+                case ESW_RELEASED:
+                    etxt = "RLSD";
+                break;
+                case ESW_BUTTON:
+                    etxt = "BTN";
+                break;
+                case ESW_HALL:
+                    etxt = "HALL";
+                break;
+                default:
+                break;
+            }
+            write2trbuf(etxt);
+            SENDBUF();
+        }
+    }
     return NULL;
 }
 
@@ -165,6 +216,8 @@ static const user_conf_descr descrarr[] = {
     {"V33NUM", &the_conf.v33numerator},
     {"V33DEN", &the_conf.v33denominator},
     {"ESWTHR", &the_conf.ESW_thres},
+    {"MOT0SPD",&the_conf.motspd[0]},
+    {"MOT1SPD",&the_conf.motspd[1]},
     {NULL, NULL}
 };
 
@@ -176,6 +229,13 @@ static char *get_conf(){
         put_uint((uint32_t) *curdesc->ptr);
         SENDBUF();
     }while((++curdesc)->fieldname);
+    write2trbuf("USARTSPD=");
+    put_uint(the_conf.usartspd);
+    SENDBUF();
+    write2trbuf("REVERSE0=");
+    put_uint(the_conf.reverse[0]);
+    write2trbuf("\nREVERSE1=");
+    put_uint(the_conf.reverse[1]);
     return EODATA;
 }
 
@@ -214,6 +274,14 @@ static char *get_ADCval(char *str){
     return NULL;
 }
 
+static char *get_temper(){
+    int32_t t = getTemp();
+    write2trbuf("TEMP=");
+    put_int(t);
+    SENDBUF();
+    return NULL;
+}
+
 static char *set_something(char *str){
     switch(*str++){
         case 'D': // set denominator
@@ -227,6 +295,9 @@ static char *set_something(char *str){
         break;
         case 'T': // set endsw threshold
             return setESWthres(str);
+        break;
+        case 'U': // set USART speed
+            return setUSARTspd(str);
         break;
     }
     return BADCMD;
@@ -269,10 +340,10 @@ static char *setESWthres(char *str){
     return ALLOK;
 }
 
-static char *get_temper(){
-    int32_t t = getTemp();
-    write2trbuf("TEMP=");
-    put_int(t);
-    SENDBUF();
-    return NULL;
+static char *setUSARTspd(char *str){
+    omitwsp(str);
+    int32_t N32;
+    if(!getnum(str, &N32)) return BADCMD;
+    the_conf.usartspd = (uint32_t) N32;
+    return ALLOK;
 }
