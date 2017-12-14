@@ -45,15 +45,17 @@ void sys_tick_handler(void){
 static void gpio_setup(void){
     // Enable clocks to the GPIO subsystems
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOFEN;
-    // PA0..3, PA13, PA14 - AIN; PA4..7 - PUPD;
-    GPIOA->MODER = GPIO_MODER_MODER0_AI | GPIO_MODER_MODER1_AI | GPIO_MODER_MODER2_AI |
-                GPIO_MODER_MODER3_AI | GPIO_MODER_MODER13_AI | GPIO_MODER_MODER14_AI  |
-                GPIO_MODER_MODER4_O | GPIO_MODER_MODER5_O | GPIO_MODER_MODER6_O | GPIO_MODER_MODER7_O;
+    // prepare levels @ ~EN pins (1 disable drivers)
+    stp_disable();
+    // PA0..3, PA13, PA14 - floating input with pullup; PA5,7 - PUPD; PA4,6 - AF
     GPIOA->OSPEEDR = 0; // all low speed
-    GPIOA->PUPDR = 0; // clear pull-down for PA14&PA13
+    GPIOA->PUPDR =  GPIO_PUPDR_PUPDR13_0 | GPIO_PUPDR_PUPDR14_0;
     // PA4 - Tim14Ch1 (AF4), PA6 - Tim3Ch1 (AF1)
     GPIOA->AFR[0] = (GPIOA->AFR[0] &~ (GPIO_AFRL_AFRL4 | GPIO_AFRL_AFRL6))\
                 | (4 << (4 * 4)) | (1 << (6 * 4));
+    GPIOA->MODER = GPIO_MODER_MODER0_AI | GPIO_MODER_MODER1_AI | GPIO_MODER_MODER2_AI |
+                GPIO_MODER_MODER3_AI | GPIO_MODER_MODER4_AF | GPIO_MODER_MODER5_O |
+                GPIO_MODER_MODER6_AF | GPIO_MODER_MODER7_O;
     // PB1 - PUPD
     GPIOB->MODER = GPIO_MODER_MODER1_O;
     // PF0, PF1 - PUPD
@@ -102,9 +104,10 @@ int main(void){
     while (1){
         IWDG->KR = IWDG_REFRESH; // refresh watchdog
         if(lastT > Tms || Tms - lastT > 499){
-            #ifdef EBUG
+/*            #ifdef EBUG
             pin_toggle(GPIOA, 1<<4); // blink by onboard LED once per second
             #endif
+*/
             lastT = Tms;
         }
         if(usart1rx()){ // usart1 received data, store in in buffer

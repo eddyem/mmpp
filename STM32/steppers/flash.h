@@ -37,7 +37,7 @@ typedef struct{
     uint16_t v33numerator; // 3.3V (vref)
     uint16_t v33denominator;
     uint32_t usartspd; // usartspeed
-    uint16_t motspd[2]; // motors speed dividers (3kHz/motxspd per step)
+    uint16_t motspd[2]; // max motor speed ([3000 / motspd] steps per second)
     uint16_t maxsteps[2]; // maximum amount of steps for each motor (0 - infinity)
     uint8_t  reverse[2]; // == 1 if positive direction when DIR is low
 } user_conf;

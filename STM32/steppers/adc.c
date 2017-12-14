@@ -36,10 +36,8 @@ static uint32_t VddValue = 0; // value of Vdd * 100 (for more precision measurem
  * 1 - Input voltage 12V
  * 2 - EndSwitch2 of motor1
  * 3 - EndSwitch1 of motor1
- * 4 - EndSwitch1 of motor2
- * 5 - EndSwitch2 of motor2
- * 6 - inner temperature
- * 7 - vref
+ * 4 - inner temperature
+ * 5 - vref
  */
 uint16_t ADC_array[NUMBER_OF_ADC_CHANNELS];
 
@@ -67,14 +65,13 @@ void adc_setup(){
     }while ((ADC1->ISR & ADC_ISR_ADRDY) == 0) /* (2) */;
     /* (1) Select HSI14 by writing 00 in CKMODE (reset value) */
     /* (2) Select the continuous mode */
-    /* (3) Select CHSEL0..3, 13,14, 16,17 */
+    /* (3) Select CHSEL0..3, 16,17 */
     /* (4) Select a sampling mode of 111 i.e. 239.5 ADC clk to be greater than 17.1us */
     /* (5) Wake-up the VREFINT and Temperature sensor (only for VBAT, Temp sensor and VRefInt) */
     // ADC1->CFGR2 &= ~ADC_CFGR2_CKMODE; /* (1) */
     ADC1->CFGR1 |= ADC_CFGR1_CONT; /* (2)*/
     ADC1->CHSELR = ADC_CHSELR_CHSEL0 | ADC_CHSELR_CHSEL1 | ADC_CHSELR_CHSEL2 |
-            ADC_CHSELR_CHSEL3 | ADC_CHSELR_CHSEL13 | ADC_CHSELR_CHSEL14 |
-            ADC_CHSELR_CHSEL16 | ADC_CHSELR_CHSEL17; /* (3)*/
+            ADC_CHSELR_CHSEL3 | ADC_CHSELR_CHSEL16 | ADC_CHSELR_CHSEL17; /* (3)*/
     ADC1->SMPR |= ADC_SMPR_SMP_0 | ADC_SMPR_SMP_1 | ADC_SMPR_SMP_2; /* (4) */
     ADC->CCR |= ADC_CCR_TSEN | ADC_CCR_VREFEN; /* (5) */
     // DMA for AIN
@@ -99,7 +96,8 @@ void adc_setup(){
 int32_t getTemp(){
     CHKVDDTIME();
     // make correction on Vdd value
-    int32_t temperature = (int32_t)ADC_array[6] * VddValue / 330;
+    int32_t temperature = (int32_t)ADC_array[4] * VddValue / 330;
+/*
 write2trbuf("getTemp()\ncal30=");
 put_uint(*TEMP30_CAL_ADDR);
 write2trbuf(", cal110=");
@@ -107,72 +105,87 @@ put_uint(*TEMP110_CAL_ADDR);
 write2trbuf(", t=");
 put_int(temperature);
 SENDBUF();
+*/
     temperature = (int32_t) *TEMP30_CAL_ADDR - temperature;
+/*
 put_int(temperature);
 SENDBUF();
+*/
     temperature *= (int32_t)(1100 - 300);
+/*
 put_int(temperature);
 SENDBUF();
+*/
     temperature = temperature / (int32_t)(*TEMP30_CAL_ADDR - *TEMP110_CAL_ADDR);
+/*
 put_int(temperature);
 SENDBUF();
+*/
     temperature += 300;
     return(temperature);
 }
 
-//static uint32_t calval = 0;
-// return Vdd * 10 (V)
+// return Vdd * 100 (V)
 uint32_t getVdd(){
     #define ARRSZ (10)
     static uint16_t arr[ARRSZ] = {0};
     static int arridx = 0;
-    uint32_t v = ADC_array[7];
+    uint32_t v = ADC_array[5];
     int i;
+/*
 write2trbuf("getVdd(), val=");
 put_uint(v);
 write2trbuf(", cal=");
 put_uint(*VREFINT_CAL_ADDR);
 SENDBUF();
+*/
     if(arr[0] == 0){ // first run - fill all with current data
+/*
 write2trbuf("1st run");
 SENDBUF();
+*/
         for(i = 0; i < ARRSZ; ++i) arr[i] = (uint16_t) v;
     }else{
+/*
 write2trbuf("arridx=");
 put_int(arridx);
 SENDBUF();
+*/
         arr[arridx++] = v;
         v = 0; // now v is mean
         if(arridx > ARRSZ-1) arridx = 0;
         // calculate mean
         for(i = 0; i < ARRSZ; ++i){
+/*
 write2trbuf("arr["); put2trbuf('0'+i); write2trbuf("]=");
 put_uint(arr[i]);
 SENDBUF();
+*/
             v += arr[i];
         }
         v /= ARRSZ;
+/*
 write2trbuf("mean value: ");
 put_uint(v);
 SENDBUF();
+*/
     }
-  /*  if(!calval){
-        calval = ((uint32_t) *VREFINT_CAL_ADDR) * VDD_CALIB;
-        calval /= VDD_APPLI;
-    } */
     uint32_t vdd = ((uint32_t) *VREFINT_CAL_ADDR) * (uint32_t)330 * the_conf.v33numerator; // 3.3V
+/*
 put_uint(vdd);
 SENDBUF();
-    //vdd /= calval * the_conf.v33denominator;
+*/
     vdd /= v * the_conf.v33denominator;
+/*
 put_uint(vdd);
 SENDBUF();
+*/
     lastVddtime = Tms;
     VddValue = vdd;
-    return vdd/10;
+    return vdd;
 }
 
-// return value of 12V * 10 (V)
+// return value of 12V * 100 (V)
 uint32_t getVmot(){
     CHKVDDTIME();
     uint32_t vmot = ADC_array[1] * VddValue * the_conf.v12numerator;
@@ -195,12 +208,17 @@ uint32_t getImot(){
 // @param eswnum - switch number (0,1)
 ESW_status eswStatus(int motnum, int eswnum){
     int idx;
-    if(motnum){ // motor 1
-        if(eswnum) idx = 5;
-        else idx = 4;
+    if(motnum){ // motor 1 have no ADC - just 0 or 1
+        if(eswnum){ // ESW11 - PA14
+            if(GPIOA->IDR & 1<<14) return ESW_RELEASED;
+            else return ESW_HALL;
+        }else{ // ESW10 - PA13
+            if(GPIOA->IDR & 1<<13) return ESW_RELEASED;
+            else return ESW_HALL;
+        }
     }else{ // motor 0
-        if(eswnum) idx = 3;
-        else idx = 2;
+        if(eswnum) idx = 2;
+        else idx = 3;
     }
     uint16_t thres = the_conf.ESW_thres, val = ADC_array[idx];
     // low sighal: 0..threshold - Hall activated

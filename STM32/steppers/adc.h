@@ -26,7 +26,7 @@
 #define __ADC_H__
 
 // 8 channels (including inttemp & vrefint)
-#define NUMBER_OF_ADC_CHANNELS (8)
+#define NUMBER_OF_ADC_CHANNELS (6)
 
 extern uint16_t ADC_array[];
 void adc_setup();

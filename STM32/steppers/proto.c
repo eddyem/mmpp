@@ -41,6 +41,7 @@ static const char *err = "ERR";
 static char *getnum(char *buf, int32_t *N);
 static char *get_something(char *str);
 static char *set_something(char *str);
+static char *motor_cmd(char *str);
 
 static char *get_status();
 static char *get_conf();
@@ -52,7 +53,8 @@ static char *setDenEn(uint8_t De, char *str);
 static char *setDevId(char *str);
 static char *setESWthres(char *str);
 static char *setUSARTspd(char *str);
-
+static char *setmotvals(char v, char *str);
+static char *setMotSpeed(int cur, char *str);
 
 #define omitwsp(str) do{register char nxt; while((nxt = *str)){if(nxt != ' ' && nxt != '\t') break; else ++str;}}while(0)
 
@@ -77,6 +79,9 @@ char* process_command(char *cmdbuf){
     switch (*str++){
         case 'G': // get something
             return get_something(str);
+        break;
+        case 'M': // motors' management
+            return motor_cmd(str);
         break;
         case 'R':
             NVIC_SystemReset();
@@ -147,7 +152,7 @@ static char *get_something(char *str){
         case 'S': // get motors' status
             return get_status();
         break;
-        case 'T':
+        case 'T': // get MCU temperature
             return get_temper();
         break;
     }
@@ -158,21 +163,52 @@ static char *get_status(){
     int i, j;
     char str[3] = {0, '=', 0};
     if(RCC->CSR & RCC_CSR_IWDGRSTF){ // watchdog reset occured
-        write2trbuf("WDGRESET=1");
+        write2trbuf("WDGRESET=1\n");
     }
     if(RCC->CSR & RCC_CSR_SFTRSTF){ // software reset occured
-        write2trbuf("SOFTRESET=1");
+        write2trbuf("SOFTRESET=1\n");
     }
     RCC->CSR = RCC_CSR_RMVF; // clear reset flags
     for(i = 0; i < 2; ++i){
         write2trbuf("MOTOR"); str[0] = '0' + i;
         write2trbuf(str);
-        if(stp_isactive(i)){
-            write2trbuf("MOV\nSTEPSLEFT");
+        stp_state stt = stp_getstate(i);
+        if(STP_SLEEP != stt){
+            char *s;
+            switch(stt){
+                case STP_ACCEL:
+                    s = "ACCEL";
+                break;
+                case STP_DECEL:
+                    s = "DECEL";
+                break;
+                case STP_MOVE:
+                    s = "MOVE";
+                break;
+                case STP_MOVE0:
+                    s = "MOVETO0";
+                break;
+                case STP_MOVE1:
+                    s = "MOVETO1";
+                break;
+                case STP_MVSLOW:
+                    s = "MVSLOW";
+                break;
+                case STP_STOP:
+                    s = "STOP";
+                break;
+                case STP_STOPZERO:
+                    s = "STOPZERO";
+                break;
+                default:
+                    s = "UNKNOWN";
+            }
+            write2trbuf(s);
+            write2trbuf("\nSTEPSLEFT");
             write2trbuf(str);
             put_uint(stp_stepsleft(i));
-        }else write2trbuf("STOP");
-        write2trbuf("POS");
+        }else write2trbuf("SLEEP");
+        write2trbuf("\nPOS");
         write2trbuf(str);
         put_int(stp_position(i));
         SENDBUF();
@@ -218,6 +254,8 @@ static const user_conf_descr descrarr[] = {
     {"ESWTHR", &the_conf.ESW_thres},
     {"MOT0SPD",&the_conf.motspd[0]},
     {"MOT1SPD",&the_conf.motspd[1]},
+    {"MAXSTEPS0",&the_conf.maxsteps[0]},
+    {"MAXSTEPS1",&the_conf.maxsteps[1]},
     {NULL, NULL}
 };
 
@@ -236,6 +274,7 @@ static char *get_conf(){
     put_uint(the_conf.reverse[0]);
     write2trbuf("\nREVERSE1=");
     put_uint(the_conf.reverse[1]);
+    SENDBUF();
     return EODATA;
 }
 
@@ -284,6 +323,9 @@ static char *get_temper(){
 
 static char *set_something(char *str){
     switch(*str++){
+        case 'C': // set current speed
+            return setMotSpeed(1, str);
+        break;
         case 'D': // set denominator
             return setDenEn(1, str);
         break;
@@ -292,6 +334,15 @@ static char *set_something(char *str){
         break;
         case 'I': // set device ID
             return setDevId(str);
+        break;
+        case 'M': // set maxsteps
+            setmotvals('M', str);
+        break;
+        case 'R': // set reverse
+            setmotvals('R', str);
+        break;
+        case 'S': // set speed
+            return setMotSpeed(0, str);
         break;
         case 'T': // set endsw threshold
             return setESWthres(str);
@@ -346,4 +397,83 @@ static char *setUSARTspd(char *str){
     if(!getnum(str, &N32)) return BADCMD;
     the_conf.usartspd = (uint32_t) N32;
     return ALLOK;
+}
+
+// if cur == 1 set current speed else set global motspd
+static char *setMotSpeed(int cur, char *str){
+    omitwsp(str);
+    uint8_t Num = *str++ - '0';
+    if(Num > 1) return ERR;
+    int32_t spd;
+    omitwsp(str);
+    if(!getnum(str, &spd)) return ERR;
+    if(spd < 2 || spd > 6553) return "BadSpd";
+    if(cur){ // change current speed
+        stp_chARR(Num, spd);
+    }else{
+        the_conf.motspd[Num] = spd;
+        stp_chspd();
+    }
+    return ALLOK;
+}
+
+// set other motor values
+static char *setmotvals(char v, char *str){
+    omitwsp(str);
+    uint8_t Num = *str++ - '0';
+    if(Num > 1) return ERR;
+    omitwsp(str);
+    int32_t val;
+    if(!getnum(str, &val)) return ERR;
+    if(val < 0 || val > 0xffff) return "BadUINT16";
+    switch(v){
+        case 'M': // maxsteps
+            if(val == 0) return ERR;
+            the_conf.maxsteps[Num] = val;
+        break;
+        case 'R': // reverse
+            if(val && val != 1) return ERR;
+            the_conf.reverse[Num] = val;
+        break;
+        default: return ERR;
+    }
+    return ALLOK;
+}
+
+// process motor command: start/stop
+static char *motor_cmd(char *str){
+    omitwsp(str);
+    uint8_t Num = *str++ - '0';
+    int32_t steps;
+    stp_status st;
+    if(Num > 1) return "Num>1";
+    omitwsp(str);
+    switch(*str++){
+        case 'M':
+            omitwsp(str);
+            if(!getnum(str, &steps)) return "BadSteps";
+            st = stp_move(Num, steps);
+            switch(st){
+                case STPS_ACTIVE:
+                    return "IsMoving";
+                break;
+                case STPS_ONESW:
+                    return "OnEndSwitch";
+                break;
+                case STPS_ZEROMOVE:
+                    return "ZeroMove";
+                break;
+                case STPS_TOOBIG:
+                    return "TooBigNumber";
+                break;
+                default:
+                    return ALLOK;
+            }
+        break;
+        case 'S':
+            stp_stop(Num);
+            return ALLOK;
+        break;
+    }
+    return ERR;
 }

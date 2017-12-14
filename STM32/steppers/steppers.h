@@ -53,11 +53,13 @@ typedef enum{
 #define stp_position(n)     (mot_position[n])
 #define stp_stepsleft(n)    (steps_left[n])
 
-int stp_isactive(int motnum);
+stp_state stp_getstate(int motnum);
 void stp_setup();
 void stp_chspd();
 stp_status stp_move(int nmotor, int32_t steps);
 void stp_stop(int n);
 void stp_process();
+void stp_disable();
+void stp_chARR(int n, int32_t val);
 
 #endif // __STEPPERS_H__

@@ -14,6 +14,7 @@ LIBS:texas
 LIBS:transistors
 LIBS:switches
 LIBS:drv8825
+LIBS:a3212lh
 LIBS:steppers-cache
 EELAYER 25 0
 EELAYER END
@@ -1154,7 +1155,7 @@ Tim3
 Text Notes 6750 1800 0    60   ~ 0
 ADC
 Text Notes 6750 2650 0    60   ~ 0
-ADC
+Floating input
 Text Notes 6850 2450 0    60   ~ 0
 UART
 Text Notes 6700 2100 0    60   ~ 0
@@ -1713,7 +1714,7 @@ Wire Wire Line
 	9500 5150 9500 5300
 Connection ~ 10200 5350
 $Comp
-L LM1117-3.3 U1
+L LM1117-3.3-RESCUE-steppers U1
 U 1 1 5A2588E7
 P 2750 5100
 F 0 "U1" H 2600 5225 50  0000 C CNN
