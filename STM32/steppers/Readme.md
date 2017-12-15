@@ -27,13 +27,17 @@ Based on STM32F030F4P6
 
 Any command have format "# CMD", where # is device ID (the_conf.devID) or "-1" if there's
 only one device at the bus. After it can be any number of spaces and command symbols.
+If the command recognized and it's right, `ALL OK` would be returnded. If the command is bad, answer
+`BADCMD`. Error in command sintax: `ERR`. If the answer would take more than one line it would
+be ends by `DATAEND`.
 
 ### First symbol of commands
 
 * (nothing except spaces) - *ping* command, device with given ID answers: `ALIVE`
 * **G** - one of the *Getters* (depending on next text)
-* **S** - one of the *Setters*
+* **M** - motors' manipulation
 * **R** - make *MCU software reboot* (next `status` getter will return `SOFTRESET=1`)
+* **S** - one of the *Setters*
 * **W** - *write flash* command, use it to save new configuration data
 
 All wrong commands will return `BADCMD`, commands with bad format or wrong number return `ERR`.
@@ -102,6 +106,20 @@ ESW11=HALL
 ```
 
 * **T** - get *MCU temperature*, e.g. `TEMP=365`
+
+
+### Motors' manipulation
+Next char should be '0' or '1' --- motor's number. If wrong, `Num>1` answer would be returned.
+There's only two commands in this section:
+
+* **Mnum** - move motor to *num* steps. Errors:
+    * **BadSteps** - *num* isn't a number
+    * **IsMoving** - motor is still moving, stop it before
+    * **OnEndSwitch** - the motor is on end-switch limiting moving in given direction
+    * **ZeroMove** - user wants to move for 0 steps
+    * **TooBigNumber** - amount of steps is greater than `MAXSTEPSx`
+* **S** - stop motor
+
 
 ### Setters
 Change of any setter takes place in MCU RAM immediately. To store them permanently run
