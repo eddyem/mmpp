@@ -17,8 +17,8 @@ Based on STM32F030F4P6
 |PA7 | PUPD | Motor1 direction        |
 |PA9 | OD   | USART1 Tx               |
 |PA10| FIN  | USART1 Rx               |
-|PA13| FIN  | EndSwitch0 of motor1    |
-|PA14| FIN  | EndSwitch1 of motor1    |
+|PA13| FINPU| EndSwitch0 of motor1    |
+|PA14| FINPU| EndSwitch1 of motor1    |
 |PB1 | PUPD | Turn off current sensor |
 |PF0 | PUPD | Motor0 enable           |
 |PF1 | PUPD | Motor0 direction        |
