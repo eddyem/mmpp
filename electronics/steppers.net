@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/eddy/Docs/SAO/Zeiss-1000/Simple_photometer/kicad/steppers.sch)
-    (date "Пн 18 дек 2017 09:38:40")
+    (date "Чт 18 янв 2018 09:51:23")
     (tool "Eeschema 4.0.7")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -125,7 +125,7 @@
       (tstamp 5A178C32))
     (comp (ref U2)
       (value MAX471)
-      (footprint Housings_SOIC.pretty:SO-8_5.3x6.2mm_Pitch1.27mm)
+      (footprint Housings_SOIC.pretty:SOIC-8_3.9x4.9mm_Pitch1.27mm)
       (libsource (lib linear) (part MAX471))
       (sheetpath (names /) (tstamps /))
       (tstamp 5A179DDA))
