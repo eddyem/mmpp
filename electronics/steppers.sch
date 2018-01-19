@@ -111,7 +111,7 @@ F 3 "" H 1600 5500 50  0000 C CNN
 $EndComp
 Text Notes 750  2350 0    100  ~ 0
 Bootloader init
-Text Label 1050 3400 2    60   ~ 0
+Text Label 1050 3450 2    60   ~ 0
 NRST
 Text Label 1050 2500 0    60   ~ 0
 BOOT0
@@ -124,17 +124,6 @@ F 1 "10k" V 1050 2800 50  0000 C CNN
 F 2 "Resistors_SMD.pretty:R_0603_HandSoldering" V 980 2800 50  0001 C CNN
 F 3 "" H 1050 2800 50  0000 C CNN
 	1    1050 2800
-	1    0    0    -1  
-$EndComp
-$Comp
-L R R2
-U 1 1 590D3334
-P 1050 3650
-F 0 "R2" V 1130 3650 50  0000 C CNN
-F 1 "10k" V 1050 3650 50  0000 C CNN
-F 2 "Resistors_SMD.pretty:R_0603_HandSoldering" V 980 3650 50  0001 C CNN
-F 3 "" H 1050 3650 50  0000 C CNN
-	1    1050 3650
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -191,17 +180,6 @@ F 2 "" H 1050 3000 50  0000 C CNN
 F 3 "" H 1050 3000 50  0000 C CNN
 	1    1050 3000
 	1    0    0    -1  
-$EndComp
-$Comp
-L +3.3V #PWR05
-U 1 1 590A465B
-P 1050 3900
-F 0 "#PWR05" H 1050 3750 50  0001 C CNN
-F 1 "+3.3V" H 1050 4040 50  0000 C CNN
-F 2 "" H 1050 3900 50  0000 C CNN
-F 3 "" H 1050 3900 50  0000 C CNN
-	1    1050 3900
-	-1   0    0    1   
 $EndComp
 $Comp
 L GND #PWR06
@@ -1228,13 +1206,6 @@ Connection ~ 1050 2600
 Wire Wire Line
 	1650 3000 1650 2950
 Wire Wire Line
-	1050 3400 1050 3500
-Wire Wire Line
-	1050 3900 1050 3800
-Wire Wire Line
-	1050 3450 1600 3450
-Connection ~ 1050 3450
-Wire Wire Line
 	1600 3450 1600 3500
 Connection ~ 1300 3450
 Wire Wire Line
@@ -1802,4 +1773,6 @@ F 3 "" H 7400 1500 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	7400 1500 7150 1500
+Wire Wire Line
+	1050 3450 1600 3450
 $EndSCHEMATC
