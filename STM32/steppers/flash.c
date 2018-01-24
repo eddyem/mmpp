@@ -45,6 +45,7 @@ user_conf the_conf = {
     ,.motspd = {10, 10} // max speed: 300 steps per second
     ,.maxsteps = {50000, 50000} // max steps from point to point
     ,.reverse = {0,0}   // set DIR to this value when moving to '+'
+    ,.intpullup = 1 // by default internal pullup @ Tx pin enabled
 };
 
 static int erase_flash();

@@ -72,9 +72,8 @@ void USART1_config(){
                 | (1 << (1 * 4)) | (1 << (2 * 4)); /* (2) */
     // Tx (PA9) in OD mode
     GPIOA->OTYPER |= 1 << 9;
-    #ifdef EBUG
-    GPIOA->PUPDR = (GPIOA->PUPDR & ~GPIO_PUPDR_PUPDR9) | GPIO_PUPDR_PUPDR9_0; // set pullup for Tx
-    #endif
+    if(the_conf.intpullup)
+        GPIOA->PUPDR = (GPIOA->PUPDR & ~GPIO_PUPDR_PUPDR9) | GPIO_PUPDR_PUPDR9_0; // set pullup for Tx
     /* Enable the peripheral clock USART1 */
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     /* Configure USART1 */

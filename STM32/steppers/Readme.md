@@ -77,19 +77,27 @@ Getters returning more than one field ends with `DATAEND` meaning that's all dat
 All variables here are fields of `user_conf` struct.
 
 
-* **R** - get *raw ADC* values, e.g.
+* **R** - get *raw ADC* values:
+    * 0 - Steppers current
+    * 1 - Input voltage 12V
+    * 2 - EndSwitch2 of motor1
+    * 3 - EndSwitch1 of motor1
+    * 4 - inner temperature
+    * 5 - vref
+
+E.g.:
 
 ```
-ADC[0]=1991
-ADC[1]=124
-ADC[2]=1351
-ADC[3]=1909
-ADC[4]=0
-ADC[5]=0
-ADC[6]=1707
-ADC[7]=1531
+ADC[0]=4095
+ADC[1]=2340
+ADC[2]=4095
+ADC[3]=4087
+ADC[4]=1665
+ADC[5]=1532
 DATAEND
 ```
+
+
 
 * **S** - get *motors' status*, e.g.
 
@@ -99,7 +107,8 @@ MOTOR0=STOP
 POS0=-1
 ESW00=ERR
 ESW01=BTN
-MOTOR1=STOPPOS1=-1
+MOTOR1=STOP
+POS1=-1
 ESW10=HALL
 ESW11=HALL
 
@@ -130,6 +139,7 @@ Change of any setter takes place in MCU RAM immediately. To store them permanent
 * **E num** - set *numerator*
 * **I num** - set *device ID*
 * **M#num** - set maxsteps (*num* is 1..65535) for motor `#`
+* **P num** - properties of internal pullup (0 - disabled, other or without `num` - enabled)
 * **R#num** - set reverse for motor # (*num* == 0 turns reverse off, *num* == 1 turns it on)
 * **S#num** - set *speed* (`motspd`) to *num* for motor #
 * **T num** - set *end-switches threshold* (in ADU, near 0 for Hall switch, 2048 for user button

@@ -38,7 +38,7 @@ void sys_tick_handler(void){
  * PA6 (Tim3Ch1)  M2STEP
  * PA5 - M2EN
  * PA7 - M2DIR
- * PB1 - 12V on/off
+ * PB1 - 12V current sensor on/off - set it to 1 to turn off MAX471
  * PF0 - M1EN
  * PF1 - M1DIR
  */

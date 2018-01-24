@@ -40,6 +40,7 @@ typedef struct{
     uint16_t motspd[2]; // max motor speed ([3000 / motspd] steps per second)
     uint16_t maxsteps[2]; // maximum amount of steps for each motor (0 - infinity)
     uint8_t  reverse[2]; // == 1 if positive direction when DIR is low
+    uint8_t  intpullup; // internal pullup @ Tx
 } user_conf;
 
 extern user_conf the_conf;

@@ -267,7 +267,9 @@ static char *get_conf(){
         put_uint((uint32_t) *curdesc->ptr);
         SENDBUF();
     }while((++curdesc)->fieldname);
-    write2trbuf("USARTSPD=");
+    write2trbuf("INTPULLUP=");
+    put2trbuf(the_conf.intpullup ? '1' : '0');
+    write2trbuf("\nUSARTSPD=");
     put_uint(the_conf.usartspd);
     SENDBUF();
     write2trbuf("REVERSE0=");
@@ -337,6 +339,11 @@ static char *set_something(char *str){
         break;
         case 'M': // set maxsteps
             setmotvals('M', str);
+        break;
+        case 'P': // set pullup
+            omitwsp(str);
+            if(*str == '0') the_conf.intpullup = 0;
+            else the_conf.intpullup = 1;
         break;
         case 'R': // set reverse
             setmotvals('R', str);
