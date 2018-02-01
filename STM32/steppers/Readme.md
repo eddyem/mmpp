@@ -54,27 +54,27 @@ Getters returning more than one field ends with `DATAEND` meaning that's all dat
     * **M** - motor's voltage (*100 Volts), e.g. `VMOT=1193`
 * **C** - get *current configuration*, e.g.
 
-```
-    CONFSZ=36
-    DEVID=0
-    V12NUM=1
-    V12DEN=10
-    I12NUM=1
-    I12DEN=1
-    V33NUM=1
-    V33DEN=1
-    ESWTHR=150
-    MOT0SPD=60
-    MOT1SPD=60
-    USARTSPD=115200
-    REVERSE0=0
-    REVERSE1=0
-    MAXSTEPS0=0
-    MAXSTEPS1=0
-    DATAEND
-```
+    ```
+        CONFSZ=36
+        DEVID=0
+        V12NUM=1
+        V12DEN=10
+        I12NUM=1
+        I12DEN=1
+        V33NUM=1
+        V33DEN=1
+        ESWTHR=150
+        MOT0SPD=60
+        MOT1SPD=60
+        USARTSPD=115200
+        REVERSE0=0
+        REVERSE1=0
+        MAXSTEPS0=0
+        MAXSTEPS1=0
+        DATAEND
+    ```
 
-All variables here are fields of `user_conf` struct.
+    All variables here are fields of `user_conf` struct.
 
 
 * **R** - get *raw ADC* values:
@@ -85,34 +85,64 @@ All variables here are fields of `user_conf` struct.
     * 4 - inner temperature
     * 5 - vref
 
-E.g.:
+    E.g.:
 
-```
-ADC[0]=4095
-ADC[1]=2340
-ADC[2]=4095
-ADC[3]=4087
-ADC[4]=1665
-ADC[5]=1532
-DATAEND
-```
+    ```
+    ADC[0]=4095
+    ADC[1]=2340
+    ADC[2]=4095
+    ADC[3]=4087
+    ADC[4]=1665
+    ADC[5]=1532
+    DATAEND
+    ```
 
 
 
-* **S** - get *motors' status*, e.g.
+* **S** - get *motors' status*.
 
-```
-SOFTRESET=1
-MOTOR0=STOP
-POS0=-1
-ESW00=ERR
-ESW01=BTN
-MOTOR1=STOP
-POS1=-1
-ESW10=HALL
-ESW11=HALL
+    Values of `MOTORx` (state of given motor) can be one of following:
+    * **ACCEL** - start moving with acceleration
+    * **DECEL** - moving with deceleration
+    * **MOVE** - moving with constant speed
+    * **MOVETO0** - move towards 0 endswitch (negative direction)
+    * **MOVETO1** - move towards 1 endswitch (positive direction)
+    * **MVSLOW** - moving with slowest constant speed
+    * **SLEEP** - don't moving (normal state)
+    * **STOP** - stop motor right now (by demand)
+    * **STOPZERO** - stop motor and zero its position (on end-switch)
+    * **UNKNOWN** - something wrong
 
-```
+    Values of `ESWxy` (state of end-switch `y` of motor `x`) can be:
+    * **BTN** - user button pressed
+    * **ERR** - wrong ADC value
+    * **HALL** - hall switch activated
+    * **RLSD** - no actions
+
+    If reset occurs there's two additional fields on first request after reset:
+    * **WDGRESET=1** - watchdog's reset occured
+    * **SOFTRESET=1** - software (by user's demand) reset occured
+
+    There also two fields:
+    * **POSx** - position of given motor (negative values means that initialisation need)
+    * **STEPSLEFTx** - (only when moving) amount of steps left
+
+
+    E.g.:
+    ```
+    SOFTRESET=1
+    MOTOR0=SLEEP
+    POS0=-1
+    ESW00=ERR
+    ESW01=BTN
+    MOTOR1=SLEEP
+    POS1=-1
+    ESW10=HALL
+    ESW11=HALL
+    ```
+
+
+
 
 * **T** - get *MCU temperature*, e.g. `TEMP=365`
 
@@ -163,3 +193,5 @@ procedure you should reboot it or (if there's only one device on the bus) call i
 The USART speed will be changed after next reset (e.g. by *MCU software reboot* command), so it
 don't work without storing in the flash. Check it twice before writing as wrong numbers can make device
 lost until next re-flashing.
+
+[//]: # (generate html with command `markdown Readme.md > readme.html)

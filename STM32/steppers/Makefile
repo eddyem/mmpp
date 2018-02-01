@@ -5,7 +5,7 @@ BOOTSPEED	?= 115200
 FAMILY		= F0
 # MCU code
 MCU			= F030x4
-DEFS		= -DEBUG
+#DEFS		= -DEBUG
 # change this linking script depending on particular MCU model,
 # for example, if you have STM32F103VBT6, you should write:
 LDSCRIPT	= ld/stm32f030f.ld
