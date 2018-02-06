@@ -31,6 +31,7 @@ LIBS:opto
 LIBS:atmel
 LIBS:contrib
 LIBS:valves
+LIBS:buttons-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
@@ -62,7 +63,7 @@ U 1 1 5A1C86CD
 P 4100 1850
 F 0 "J1" H 4100 1950 50  0000 C CNN
 F 1 "Conn_01x02" H 4100 1650 50  0000 C CNN
-F 2 "my_footprints:SMD2pin" H 4100 1850 50  0001 C CNN
+F 2 "Pin_Headers.pretty:Pin_Header_Straight_1x02_Pitch2.54mm" H 4100 1850 50  0001 C CNN
 F 3 "" H 4100 1850 50  0001 C CNN
 	1    4100 1850
 	1    0    0    -1  
@@ -90,7 +91,7 @@ U 1 1 5A1C8859
 P 4100 2300
 F 0 "J2" H 4100 2400 50  0000 C CNN
 F 1 "Conn_01x02" H 4100 2100 50  0000 C CNN
-F 2 "my_footprints:SMD2pin" H 4100 2300 50  0001 C CNN
+F 2 "Pin_Headers.pretty:Pin_Header_Straight_1x02_Pitch2.54mm" H 4100 2300 50  0001 C CNN
 F 3 "" H 4100 2300 50  0001 C CNN
 	1    4100 2300
 	1    0    0    -1  
@@ -118,7 +119,7 @@ U 1 1 5A1C8BA0
 P 4100 2750
 F 0 "J3" H 4100 2850 50  0000 C CNN
 F 1 "Conn_01x02" H 4100 2550 50  0000 C CNN
-F 2 "my_footprints:SMD2pin" H 4100 2750 50  0001 C CNN
+F 2 "Pin_Headers.pretty:Pin_Header_Straight_1x02_Pitch2.54mm" H 4100 2750 50  0001 C CNN
 F 3 "" H 4100 2750 50  0001 C CNN
 	1    4100 2750
 	1    0    0    -1  
@@ -146,7 +147,7 @@ U 1 1 5A1C8BAF
 P 4100 3200
 F 0 "J4" H 4100 3300 50  0000 C CNN
 F 1 "Conn_01x02" H 4100 3000 50  0000 C CNN
-F 2 "my_footprints:SMD2pin" H 4100 3200 50  0001 C CNN
+F 2 "Pin_Headers.pretty:Pin_Header_Straight_1x02_Pitch2.54mm" H 4100 3200 50  0001 C CNN
 F 3 "" H 4100 3200 50  0001 C CNN
 	1    4100 3200
 	1    0    0    -1  

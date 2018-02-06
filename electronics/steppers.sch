@@ -1008,7 +1008,7 @@ PUPD
 Text Notes 2600 2400 2    60   ~ 0
 PUPD
 Text Notes 3000 7450 0    79   ~ 0
-Pins 7,8,9 and 7,8,10 of steppers' connectors\nare for Hall switches and switch buttons.\nWithout signal voltage is 3.3V through 47k pullup,\nwith Hall signal it is near 0V, \nwhen there's no Hall you can connect the input\nby button with 47k pulldown and voltage will be\nnear 1.7V.
+Pins 1,5,7 and 9 of steppers' connectors\nare for Hall switches and switch buttons.\nWithout signal voltage is 3.3V through 47k pullup,\nwith Hall signal it is near 0V, \nwhen there's no Hall you can connect the input\nby button with 47k pulldown and voltage will be\nnear 1.7V.
 $Comp
 L R R23
 U 1 1 5A21099C
