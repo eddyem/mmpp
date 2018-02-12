@@ -69,28 +69,28 @@ int movemotor(int mcu, int motnum, int steps, const char *name){
         WARNX(_("Can't get current %s position"), name);
         return 0;
     }
-    if(curpos < 0){ // need to init
-        // check if we are on zero endswitch
-        int esw = mot_getesw(mcu, motnum);
-        if(esw == 0){ // move a little
-            sprintf(buf, "%dM%dM100", mcu, motnum);
-            tty_sendcmd(buf);
-            tty_wait();
-        }
-        sprintf(buf, "%dM%dM-40000", mcu, motnum);
-        if(tty_sendcmd(buf)){
-            WARNX(_("Can't initialize %s"), name);
-            return 0;
-        }
-        tty_wait(); // wait for initialisation ends
-        handshake();
-        curpos = mot_getpos(mcu, motnum);
-        if(curpos){
-            WARNX(_("Can't return to zero"));
-            return 0;
-        }
-    }
     if(G->absmove){
+        if(curpos < 0){ // need to init
+            // check if we are on zero endswitch
+            int esw = mot_getesw(mcu, motnum);
+            if(esw == 0){ // move a little
+                sprintf(buf, "%dM%dM100", mcu, motnum);
+                tty_sendcmd(buf);
+                tty_wait();
+            }
+            sprintf(buf, "%dM%dM-40000", mcu, motnum);
+            if(tty_sendcmd(buf)){
+                WARNX(_("Can't initialize %s"), name);
+                return 0;
+            }
+            tty_wait(); // wait for initialisation ends
+            handshake();
+            curpos = mot_getpos(mcu, motnum);
+            if(curpos){
+                WARNX(_("Can't return to zero"));
+                return 0;
+            }
+        }
         if(steps < 0){
             if(motnum == 1){
                 steps += (mcu == 1) ? 36000 : 28800; // convert rotator angle to positive
