@@ -1,0 +1,298 @@
+<h1>Management of two stepper motors</h1>
+
+<p>Based on STM32F030F4P6</p>
+
+<h2>Pinout</h2>
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">Pin </th>
+<th style="text-align:center;"> Type </th>
+<th style="text-align:left;">         Role            </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">PA0 </td>
+<td style="text-align:center;"> AIN  </td>
+<td style="text-align:left;"> Steppers current        </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA1 </td>
+<td style="text-align:center;"> AIN  </td>
+<td style="text-align:left;"> Input voltage 12V       </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA2 </td>
+<td style="text-align:center;"> AIN  </td>
+<td style="text-align:left;"> EndSwitch1 of motor0    </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA3 </td>
+<td style="text-align:center;"> AIN  </td>
+<td style="text-align:left;"> EndSwitch0 of motor0    </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA4 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Tim14Ch1 - motor0 steps </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA5 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Motor1 enable           </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA6 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Tim3Ch1 - motor1 steps  </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA7 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Motor1 direction        </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA9 </td>
+<td style="text-align:center;"> OD   </td>
+<td style="text-align:left;"> USART1 Tx               </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA10</td>
+<td style="text-align:center;"> FIN  </td>
+<td style="text-align:left;"> USART1 Rx               </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA13</td>
+<td style="text-align:center;"> FINPU</td>
+<td style="text-align:left;"> EndSwitch0 of motor1    </td>
+</tr>
+<tr>
+<td style="text-align:left;">PA14</td>
+<td style="text-align:center;"> FINPU</td>
+<td style="text-align:left;"> EndSwitch1 of motor1    </td>
+</tr>
+<tr>
+<td style="text-align:left;">PB1 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Turn off current sensor </td>
+</tr>
+<tr>
+<td style="text-align:left;">PF0 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Motor0 enable           </td>
+</tr>
+<tr>
+<td style="text-align:left;">PF1 </td>
+<td style="text-align:center;"> PUPD </td>
+<td style="text-align:left;"> Motor0 direction        </td>
+</tr>
+</tbody>
+</table>
+
+
+<h2>Protocol</h2>
+
+<p>Any command have format &ldquo;# CMD&rdquo;, where # is device ID (the_conf.devID) or &ldquo;-1&rdquo; if there&rsquo;s
+only one device at the bus. After it can be any number of spaces and command symbols.
+If the command recognized and it&rsquo;s right, <code>ALL OK</code> would be returnded. If the command is bad, answer
+<code>BADCMD</code>. Error in command sintax: <code>ERR</code>. If the answer would take more than one line it would
+be ends by <code>DATAEND</code>.</p>
+
+<h3>First symbol of commands</h3>
+
+<ul>
+<li>(nothing except spaces) - <em>ping</em> command, device with given ID answers: <code>ALIVE</code></li>
+<li><strong>G</strong> - one of the <em>Getters</em> (depending on next text)</li>
+<li><strong>M</strong> - motors' manipulation</li>
+<li><strong>R</strong> - make <em>MCU software reboot</em> (next <code>status</code> getter will return <code>SOFTRESET=1</code>)</li>
+<li><strong>S</strong> - one of the <em>Setters</em></li>
+<li><strong>W</strong> - <em>write flash</em> command, use it to save new configuration data</li>
+</ul>
+
+
+<p>All wrong commands will return <code>BADCMD</code>, commands with bad format or wrong number return <code>ERR</code>.
+Commands with lot of output ends with <code>DATAEND</code>. Some commands (like flash write) will return
+just <code>ALL OK</code> if succeed.</p>
+
+<h3>Getters</h3>
+
+<p>Getters returning more than one field ends with <code>DATAEND</code> meaning that&rsquo;s all data.</p>
+
+<ul>
+<li><strong>A</strong> - get <em>ADC value</em>
+
+<ul>
+<li><strong>D</strong> - Vdd value (*100 Volts), e.g. <code>VDD=330</code></li>
+<li><strong>I</strong> - total motors' current (*100 Amperes), e.g. <code>IMOT=123</code></li>
+<li><strong>M</strong> - motor&rsquo;s voltage (*100 Volts), e.g. <code>VMOT=1193</code></li>
+</ul>
+</li>
+<li><p><strong>C</strong> - get <em>current configuration</em>, e.g.</p>
+
+<p>  <code>
+      CONFSZ=36
+      DEVID=0
+      V12NUM=1
+      V12DEN=10
+      I12NUM=1
+      I12DEN=1
+      V33NUM=1
+      V33DEN=1
+      ESWTHR=150
+      MOT0SPD=60
+      MOT1SPD=60
+      USARTSPD=115200
+      REVERSE0=0
+      REVERSE1=0
+      MAXSTEPS0=0
+      MAXSTEPS1=0
+      DATAEND
+ </code></p>
+
+<p>  All variables here are fields of <code>user_conf</code> struct.</p></li>
+<li><p><strong>R</strong> - get <em>raw ADC</em> values:</p>
+
+<ul>
+<li>0 - Steppers current</li>
+<li>1 - Input voltage 12V</li>
+<li>2 - EndSwitch2 of motor1</li>
+<li>3 - EndSwitch1 of motor1</li>
+<li>4 - inner temperature</li>
+<li>5 - vref</li>
+</ul>
+
+
+<p>  E.g.:</p>
+
+<p>  <code>
+  ADC[0]=4095
+  ADC[1]=2340
+  ADC[2]=4095
+  ADC[3]=4087
+  ADC[4]=1665
+  ADC[5]=1532
+  DATAEND
+ </code></p></li>
+<li><p><strong>S</strong> - get <em>motors' status</em>.</p>
+
+<p>  Values of <code>MOTORx</code> (state of given motor) can be one of following:</p>
+
+<ul>
+<li><strong>ACCEL</strong> - start moving with acceleration</li>
+<li><strong>DECEL</strong> - moving with deceleration</li>
+<li><strong>MOVE</strong> - moving with constant speed</li>
+<li><strong>MOVETO0</strong> - move towards 0 endswitch (negative direction)</li>
+<li><strong>MOVETO1</strong> - move towards 1 endswitch (positive direction)</li>
+<li><strong>MVSLOW</strong> - moving with slowest constant speed</li>
+<li><strong>SLEEP</strong> - don&rsquo;t moving (normal state)</li>
+<li><strong>STOP</strong> - stop motor right now (by demand)</li>
+<li><strong>STOPZERO</strong> - stop motor and zero its position (on end-switch)</li>
+<li><strong>UNKNOWN</strong> - something wrong</li>
+</ul>
+
+
+<p>  Values of <code>ESWxy</code> (state of end-switch <code>y</code> of motor <code>x</code>) can be:</p>
+
+<ul>
+<li><strong>BTN</strong> - user button pressed</li>
+<li><strong>ERR</strong> - wrong ADC value</li>
+<li><strong>HALL</strong> - hall switch activated</li>
+<li><strong>RLSD</strong> - no actions</li>
+</ul>
+
+
+<p>  If reset occurs there&rsquo;s two additional fields on first request after reset:</p>
+
+<ul>
+<li><strong>WDGRESET=1</strong> - watchdog&rsquo;s reset occured</li>
+<li><strong>SOFTRESET=1</strong> - software (by user&rsquo;s demand) reset occured</li>
+</ul>
+
+
+<p>  There also two fields:</p>
+
+<ul>
+<li><strong>POSx</strong> - position of given motor (negative values means that initialisation need)</li>
+<li><strong>STEPSLEFTx</strong> - (only when moving) amount of steps left</li>
+</ul>
+
+
+<p>  E.g.:
+  <code>
+  SOFTRESET=1
+  MOTOR0=SLEEP
+  POS0=-1
+  ESW00=ERR
+  ESW01=BTN
+  MOTOR1=SLEEP
+  POS1=-1
+  ESW10=HALL
+  ESW11=HALL
+ </code></p></li>
+<li><p><strong>T</strong> - get <em>MCU temperature</em>, e.g. <code>TEMP=365</code></p></li>
+</ul>
+
+
+<h3>Motors' manipulation</h3>
+
+<p>Next char should be &lsquo;0&rsquo; or &lsquo;1&rsquo; &mdash; motor&rsquo;s number. If wrong, <code>Num&gt;1</code> answer would be returned.
+There&rsquo;s only two commands in this section:</p>
+
+<ul>
+<li><strong>Mnum</strong> - move motor to <em>num</em> steps. Errors:
+
+<ul>
+<li><strong>BadSteps</strong> - <em>num</em> isn&rsquo;t a number</li>
+<li><strong>IsMoving</strong> - motor is still moving, stop it before</li>
+<li><strong>OnEndSwitch</strong> - the motor is on end-switch limiting moving in given direction</li>
+<li><strong>ZeroMove</strong> - user wants to move for 0 steps</li>
+<li><strong>TooBigNumber</strong> - amount of steps is greater than <code>MAXSTEPSx</code></li>
+</ul>
+</li>
+<li><strong>S</strong> - stop motor</li>
+</ul>
+
+
+<h3>Setters</h3>
+
+<p>Change of any setter takes place in MCU RAM immediately. To store them permanently run
+<em>write flash</em> command.</p>
+
+<ul>
+<li><strong>C#num</strong> - set current <em>speed</em> to <em>num</em> for motor #</li>
+<li><strong>D num</strong> - set <em>denominator</em> to number <em>num</em></li>
+<li><strong>E num</strong> - set <em>numerator</em></li>
+<li><strong>I num</strong> - set <em>device ID</em></li>
+<li><strong>M#num</strong> - set maxsteps (<em>num</em> is 1..65535) for motor <code>#</code></li>
+<li><strong>P num</strong> - properties of internal pullup (0 - disabled, other or without <code>num</code> - enabled)</li>
+<li><strong>R#num</strong> - set reverse for motor # (<em>num</em> == 0 turns reverse off, <em>num</em> == 1 turns it on)</li>
+<li><strong>S#num</strong> - set <em>speed</em> (<code>motspd</code>) to <em>num</em> for motor #</li>
+<li><strong>T num</strong> - set <em>end-switches threshold</em> (in ADU, near 0 for Hall switch, 2048 for user button
+  and 4096 for released state)</li>
+<li><strong>U num</strong> - set <em>USART speed</em> to <em>num</em> bits per second</li>
+</ul>
+
+
+<h3>Motor speed setters</h3>
+
+<p>To set motor speed to <strong>N</strong> steps per second, give command <code>C</code> or <code>S</code> with argument equal to
+3000/N. E.g. to set current speed for DevID=0, motor0 to 50 steps per second give command <code>0SC050</code>.</p>
+
+<h3>Denominator and numerator setters</h3>
+
+<p>Have naxt letter similar to ADC getter (<strong>D</strong> - Vdd, <strong>I</strong> - motors' I, or <strong>M</strong> - motors' U).
+The value of numerator shouldn&rsquo;t be very large as uint32_t used in multiplications.</p>
+
+<h3>Device ID setter</h3>
+
+<p>After this command device will immediately change it&rsquo;s ID, if you &ldquo;lost&rdquo; device after this
+procedure you should reboot it or (if there&rsquo;s only one device on the bus) call it by &ldquo;universal ID&rdquo;
+(-1).</p>
+
+<h3>USART speed setter</h3>
+
+<p>The USART speed will be changed after next reset (e.g. by <em>MCU software reboot</em> command), so it
+don&rsquo;t work without storing in the flash. Check it twice before writing as wrong numbers can make device
+lost until next re-flashing.</p>

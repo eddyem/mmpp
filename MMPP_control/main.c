@@ -29,7 +29,6 @@
 static glob_pars *G;
 
 void signals(int signo){
-    restore_console();
     restore_tty();
     exit(signo);
 }
@@ -121,7 +120,6 @@ int main(int argc, char **argv){
     setbuf(stdout, NULL);
     initial_setup();
     G = parse_args(argc, argv);
-    setup_con(); // no echo
     tty_init(G->comdev);
     handshake(); // test connection & get all positions
     if(G->showtemp){
