@@ -119,7 +119,7 @@ int main(void){
         //def EBUG
         if(msgctr > Tms || Tms - msgctr > 4999){ // once per 5 seconds
             msgctr = Tms;
-            txt = "hello";
+            txt = "hello, I'm alive!\n";
         }
         #endif
         /*

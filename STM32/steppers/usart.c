@@ -79,7 +79,7 @@ void USART1_config(){
     /* Configure USART1 */
     /* (1) oversampling by 16, set speed */
     /* (2) 8 data bit, 1 start bit, 1 stop bit, no parity */
-    USART1->BRR = 48000000 / the_conf.usartspd; /* (1) */
+    USART1->BRR = 48000000UL / the_conf.usartspd; /* (1) */
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE; /* (2) */
     /* polling idle frame Transmission */
     while(!(USART1->ISR & USART_ISR_TC)){}

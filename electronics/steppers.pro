@@ -1,4 +1,4 @@
-update=Вт 12 дек 2017 11:12:17
+update=Ср 16 янв 2019 08:21:59
 last_client=kicad
 [pcbnew]
 version=1
@@ -36,20 +36,3 @@ version=1
 [eeschema]
 version=1
 LibDir=
-[eeschema/libraries]
-LibName1=steppers-rescue
-LibName2=conn
-LibName3=device
-LibName4=ESD_Protection
-LibName5=linear
-LibName6=microcontrollers
-LibName7=power
-LibName8=regul
-LibName9=relays
-LibName10=sensors
-LibName11=stm32
-LibName12=texas
-LibName13=transistors
-LibName14=switches
-LibName15=drv8825
-LibName16=a3212lh

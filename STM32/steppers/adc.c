@@ -48,7 +48,7 @@ void adc_setup(){
     /* (3) Wait HSI14 is ready */
     RCC->APB2ENR |= RCC_APB2ENR_ADC1EN; /* (1) */
     RCC->CR2 |= RCC_CR2_HSI14ON; /* (2) */
-    while ((RCC->CR2 & RCC_CR2_HSI14RDY) == 0) /* (3) */
+    while ((RCC->CR2 & RCC_CR2_HSI14RDY) == 0){}; /* (3) */
     /* (1) Ensure that ADEN = 0 */
     /* (2) Clear ADEN */
     /* (3) Launch the calibration by setting ADCAL */
@@ -62,7 +62,7 @@ void adc_setup(){
     /* (2) Wait until ADC ready */
     do{
         ADC1->CR |= ADC_CR_ADEN; /* (1) */
-    }while ((ADC1->ISR & ADC_ISR_ADRDY) == 0) /* (2) */;
+    }while ((ADC1->ISR & ADC_ISR_ADRDY) == 0); /* (2) */;
     /* (1) Select HSI14 by writing 00 in CKMODE (reset value) */
     /* (2) Select the continuous mode */
     /* (3) Select CHSEL0..3, 16,17 */

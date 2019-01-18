@@ -338,15 +338,16 @@ static char *set_something(char *str){
             return setDevId(str);
         break;
         case 'M': // set maxsteps
-            setmotvals('M', str);
+            return setmotvals('M', str);
         break;
         case 'P': // set pullup
             omitwsp(str);
             if(*str == '0') the_conf.intpullup = 0;
             else the_conf.intpullup = 1;
+            return ALLOK;
         break;
         case 'R': // set reverse
-            setmotvals('R', str);
+            return setmotvals('R', str);
         break;
         case 'S': // set speed
             return setMotSpeed(0, str);
