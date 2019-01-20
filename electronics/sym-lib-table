@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name steppers-rescue)(type Legacy)(uri ${KIPRJMOD}/steppers-rescue.lib)(options "")(descr ""))
+  (lib (name drv8825)(type Legacy)(uri ${KIPRJMOD}/drv8825.lib)(options "")(descr ""))
+  (lib (name a3212lh)(type Legacy)(uri ${KIPRJMOD}/a3212lh.lib)(options "")(descr ""))
+)
