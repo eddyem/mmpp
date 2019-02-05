@@ -52,7 +52,7 @@ LIB_DIR		:= $(INC_DIR)/ld
 CFLAGS		+= -O2 -g -MD -D__thumb2__=1
 CFLAGS		+= -Wall -Werror -Wextra -Wshadow -Wimplicit-function-declaration
 CFLAGS		+= -Wredundant-decls $(INCLUDE)
-# -Wmissing-prototypes -Wstrict-prototypes
+#-Wmissing-prototypes -Wstrict-prototypes
 CFLAGS		+= -fno-common -ffunction-sections -fdata-sections
 
 ###############################################################################
@@ -70,10 +70,6 @@ LDLIBS		+= -Wl,--start-group -lc -lgcc -Wl,--end-group
 LDLIBS		+= $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 DEFS		+= -DSTM32$(FAMILY) -DSTM32$(MCU)
-
-#.SUFFIXES: .elf .bin .hex .srec .list .map .images
-#.SECONDEXPANSION:
-#.SECONDARY:
 
 ELF		:= $(OBJDIR)/$(BINARY).elf
 LIST	:= $(OBJDIR)/$(BINARY).list
@@ -100,9 +96,6 @@ $(STARTUP): $(INC_DIR)/startup/vector.c
 $(OBJDIR)/%.o: %.c
 	@echo "  CC      $<"
 	$(CC) $(CFLAGS) $(DEFS) $(INCLUDE) $(ARCH_FLAGS) -o $@ -c $<
-
-#$(OBJDIR)/%.d: %.c $(OBJDIR)
-#	$(CC) -MM -MG $< | sed -e 's,^\([^:]*\)\.o[ ]*:,$(@D)/\1.o $(@D)/\1.d:,' >$@
 
 $(BIN): $(ELF)
 	@echo "  OBJCOPY $(BIN)"

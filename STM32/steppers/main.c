@@ -19,12 +19,12 @@
  * MA 02110-1301, USA.
  */
 
-#include "stm32f0.h"
-#include "usart.h"
 #include "adc.h"
 #include "flash.h"
 #include "proto.h"
 #include "steppers.h"
+#include "stm32f0.h"
+#include "usart.h"
 
 volatile uint32_t Tms = 0;
 
@@ -85,13 +85,14 @@ void iwdg_setup(){
 }
 
 int main(void){
-    uint32_t lastT = 0;
+    //uint32_t lastT = 0;
     uint32_t ostctr = 0;
     #if 0
     //def EBUG
     uint32_t msgctr = 0;
     #endif
     char *txt = NULL;
+    const char *ret = NULL;
     sysreset();
     SysTick_Config(6000, 1);
     get_userconf();
@@ -103,17 +104,13 @@ int main(void){
     //pin_set(GPIOA, 1<<5); // clear extern LED
     while (1){
         IWDG->KR = IWDG_REFRESH; // refresh watchdog
-        if(lastT > Tms || Tms - lastT > 499){
-/*            #ifdef EBUG
-            pin_toggle(GPIOA, 1<<4); // blink by onboard LED once per second
-            #endif
-*/
+        /*if(lastT > Tms || Tms - lastT > 499){
             lastT = Tms;
-        }
+        }*/
         if(usart1rx()){ // usart1 received data, store in in buffer
             if(usart1_getline(&txt)){
-                txt = process_command(txt);
-            }else txt = NULL; // buffer overflow
+                ret = process_command(txt);
+            }else ret = NULL; // buffer overflow
         }
         #if 0
         //def EBUG
@@ -122,15 +119,9 @@ int main(void){
             txt = "hello, I'm alive!\n";
         }
         #endif
-        /*
-        if(trbufisfull()){
-            write2trbuf("ERR");
-            usart1_send_blocking(gettrbuf());
-        }
-        cleartrbuf();*/
-        if(txt){ // text waits for sending
-            if(ALL_OK == usart1_send(txt)){
-                txt = NULL;
+        if(ret){ // text waits for sending
+            if(ALL_OK == usart1_send(ret)){
+                ret = NULL;
             }
         }
         if(ostctr != Tms){ // check steppers not frequently than once in 1ms

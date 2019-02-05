@@ -20,18 +20,18 @@
  * MA 02110-1301, USA.
  *
  */
-#include "stm32f0.h"
-#include "flash.h"
 #include "adc.h"
+#include "flash.h"
+#include "stm32f0.h"
 #include "usart.h"
 
-extern volatile uint32_t Tms; // time counter for 1-second Vdd measurement
 static uint32_t lastVddtime = 0; // Tms value of last Vdd measurement
 static uint32_t VddValue = 0; // value of Vdd * 100 (for more precision measurements)
 // check time of last Vdd measurement & refresh it value
-#define CHKVDDTIME() do{if(!VddValue || Tms < lastVddtime || Tms - lastVddtime > 999) getVdd();}while(0)
+#define CHKVDDTIME() do{if(!VddValue || Tms - lastVddtime > 999) getVdd();}while(0)
 
-/*
+/**
+ * Array for ADC raw values (before median filter by 9 elements):
  * 0 - Steppers current
  * 1 - Input voltage 12V
  * 2 - EndSwitch2 of motor1
@@ -39,7 +39,32 @@ static uint32_t VddValue = 0; // value of Vdd * 100 (for more precision measurem
  * 4 - inner temperature
  * 5 - vref
  */
-uint16_t ADC_array[NUMBER_OF_ADC_CHANNELS];
+uint16_t ADC_array[NUMBER_OF_ADC_CHANNELS*9];
+
+/**
+ * @brief getADCval - calculate median value for `nch` channel
+ * @param nch - number of channel
+ * @return
+ */
+uint16_t getADCval(int nch){
+    int i, addr = nch;
+    register uint16_t temp;
+#define PIX_SORT(a,b) { if ((a)>(b)) PIX_SWAP((a),(b)); }
+#define PIX_SWAP(a,b) { temp=(a);(a)=(b);(b)=temp; }
+    uint16_t p[9];
+    for(i = 0; i < 9; ++i, addr += NUMBER_OF_ADC_CHANNELS) // first we should prepare array for optmed
+        p[i] = ADC_array[addr];
+    PIX_SORT(p[1], p[2]) ; PIX_SORT(p[4], p[5]) ; PIX_SORT(p[7], p[8]) ;
+    PIX_SORT(p[0], p[1]) ; PIX_SORT(p[3], p[4]) ; PIX_SORT(p[6], p[7]) ;
+    PIX_SORT(p[1], p[2]) ; PIX_SORT(p[4], p[5]) ; PIX_SORT(p[7], p[8]) ;
+    PIX_SORT(p[0], p[3]) ; PIX_SORT(p[5], p[8]) ; PIX_SORT(p[4], p[7]) ;
+    PIX_SORT(p[3], p[6]) ; PIX_SORT(p[1], p[4]) ; PIX_SORT(p[2], p[5]) ;
+    PIX_SORT(p[4], p[7]) ; PIX_SORT(p[4], p[2]) ; PIX_SORT(p[6], p[4]) ;
+    PIX_SORT(p[4], p[2]) ;
+    return p[4];
+#undef PIX_SORT
+#undef PIX_SWAP
+}
 
 void adc_setup(){
     // AIN: PA0..3, PA13, PA14. ADC_IN16 - inner temperature. ADC_IN17 - VREFINT
@@ -86,7 +111,7 @@ void adc_setup(){
     ADC1->CFGR1 |= ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG; /* (2) */
     DMA1_Channel1->CPAR = (uint32_t) (&(ADC1->DR)); /* (3) */
     DMA1_Channel1->CMAR = (uint32_t)(ADC_array); /* (4) */
-    DMA1_Channel1->CNDTR = NUMBER_OF_ADC_CHANNELS; /* (5) */
+    DMA1_Channel1->CNDTR = NUMBER_OF_ADC_CHANNELS * 9; /* (5) */
     DMA1_Channel1->CCR |= DMA_CCR_MINC | DMA_CCR_MSIZE_0 | DMA_CCR_PSIZE_0 | DMA_CCR_CIRC; /* (6) */
     DMA1_Channel1->CCR |= DMA_CCR_EN; /* (7) */
     ADC1->CR |= ADC_CR_ADSTART; /* start the ADC conversions */
@@ -96,90 +121,18 @@ void adc_setup(){
 int32_t getTemp(){
     CHKVDDTIME();
     // make correction on Vdd value
-    int32_t temperature = (int32_t)ADC_array[4] * VddValue / 330;
-/*
-write2trbuf("getTemp()\ncal30=");
-put_uint(*TEMP30_CAL_ADDR);
-write2trbuf(", cal110=");
-put_uint(*TEMP110_CAL_ADDR);
-write2trbuf(", t=");
-put_int(temperature);
-SENDBUF();
-*/
+    int32_t temperature = (int32_t)getADCval(4) * (int32_t)VddValue / 330;
     temperature = (int32_t) *TEMP30_CAL_ADDR - temperature;
-/*
-put_int(temperature);
-SENDBUF();
-*/
     temperature *= (int32_t)(1100 - 300);
-/*
-put_int(temperature);
-SENDBUF();
-*/
     temperature = temperature / (int32_t)(*TEMP30_CAL_ADDR - *TEMP110_CAL_ADDR);
-/*
-put_int(temperature);
-SENDBUF();
-*/
     temperature += 300;
     return(temperature);
 }
 
 // return Vdd * 100 (V)
 uint32_t getVdd(){
-    #define ARRSZ (10)
-    static uint16_t arr[ARRSZ] = {0};
-    static int arridx = 0;
-    uint32_t v = ADC_array[5];
-    int i;
-/*
-write2trbuf("getVdd(), val=");
-put_uint(v);
-write2trbuf(", cal=");
-put_uint(*VREFINT_CAL_ADDR);
-SENDBUF();
-*/
-    if(arr[0] == 0){ // first run - fill all with current data
-/*
-write2trbuf("1st run");
-SENDBUF();
-*/
-        for(i = 0; i < ARRSZ; ++i) arr[i] = (uint16_t) v;
-    }else{
-/*
-write2trbuf("arridx=");
-put_int(arridx);
-SENDBUF();
-*/
-        arr[arridx++] = v;
-        v = 0; // now v is mean
-        if(arridx > ARRSZ-1) arridx = 0;
-        // calculate mean
-        for(i = 0; i < ARRSZ; ++i){
-/*
-write2trbuf("arr["); put2trbuf('0'+i); write2trbuf("]=");
-put_uint(arr[i]);
-SENDBUF();
-*/
-            v += arr[i];
-        }
-        v /= ARRSZ;
-/*
-write2trbuf("mean value: ");
-put_uint(v);
-SENDBUF();
-*/
-    }
     uint32_t vdd = ((uint32_t) *VREFINT_CAL_ADDR) * (uint32_t)330 * the_conf.v33numerator; // 3.3V
-/*
-put_uint(vdd);
-SENDBUF();
-*/
-    vdd /= v * the_conf.v33denominator;
-/*
-put_uint(vdd);
-SENDBUF();
-*/
+    vdd /= getADCval(5) * the_conf.v33denominator;
     lastVddtime = Tms;
     VddValue = vdd;
     return vdd;
@@ -188,7 +141,7 @@ SENDBUF();
 // return value of 12V * 100 (V)
 uint32_t getVmot(){
     CHKVDDTIME();
-    uint32_t vmot = ADC_array[1] * VddValue * the_conf.v12numerator;
+    uint32_t vmot = getADCval(1) * VddValue * the_conf.v12numerator;
     vmot >>= 12;
     vmot /= the_conf.v12denominator;
     return vmot;
@@ -197,7 +150,7 @@ uint32_t getVmot(){
 // return value of motors' current * 100 (A)
 uint32_t getImot(){
     CHKVDDTIME();
-    uint32_t vmot = ADC_array[0] * VddValue * the_conf.i12numerator;
+    uint32_t vmot = getADCval(0) * VddValue * the_conf.i12numerator;
     vmot >>= 12;
     vmot /= the_conf.i12denominator;
     return vmot;
@@ -220,7 +173,7 @@ ESW_status eswStatus(int motnum, int eswnum){
         if(eswnum) idx = 2;
         else idx = 3;
     }
-    uint16_t thres = the_conf.ESW_thres, val = ADC_array[idx];
+    uint16_t thres = the_conf.ESW_thres, val = getADCval(idx);
     // low sighal: 0..threshold - Hall activated
     if(val < thres) return ESW_HALL;
     // high signal: (4096-thres)..4096 - pullup

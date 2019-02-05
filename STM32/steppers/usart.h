@@ -19,10 +19,11 @@
  * MA 02110-1301, USA.
  */
 #pragma once
-#ifndef __USART_H__
-#define __USART_H__
+#ifndef USART_H__
+#define USART_H__
 
 #include "stm32f0.h"
+#include <stdint.h>
 
 // input and output buffers size
 #define UARTBUFSZ  (64)
@@ -43,19 +44,24 @@ typedef enum{
 extern int linerdy, bufovr, txrdy;
 extern int trbufidx;
 
-void USART1_config();
+void USART1_config(void);
 int usart1_getline(char **line);
-TXstatus usart1_send(char *str);
+TXstatus usart1_send(const char *str);
 #define usart1_send_blocking(str) do{}while(LINE_BUSY == usart1_send(str))
+#ifdef EBUG
+    #define DBG(str) usart1_send_blocking(str)
+#else
+    #define DBG(str)
+#endif
 #define SENDBUF() do{usart1_send_blocking(gettrbuf()); cleartrbuf();}while(0)
 
 #define cleartrbuf()  do{trbufidx = 0;}while(0)
 #define trbufisfull()  (trbufidx)
 int put2trbuf(char c);
 int write2trbuf(const char *str);
-char *gettrbuf();
+char *gettrbuf(void);
 int put_int(int32_t N);
 int put_uint(uint32_t N);
 
 
-#endif // __USART_H__
+#endif // USART_H__

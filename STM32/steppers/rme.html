@@ -237,7 +237,7 @@ just <code>ALL OK</code> if succeed.</p>
 
 <h3>Motors' manipulation</h3>
 
-<p>Next char should be &lsquo;0&rsquo; or &lsquo;1&rsquo; &mdash; motor&rsquo;s number. If wrong, <code>Num&gt;1</code> answer would be returned.
+<p>Next char should be &lsquo;0&rsquo; or &lsquo;1&rsquo; &mdash; motor&rsquo;s number. If wrong, <code>BADCMD</code> answer would be returned.
 There&rsquo;s only two commands in this section:</p>
 
 <ul>
@@ -261,9 +261,10 @@ There&rsquo;s only two commands in this section:</p>
 <em>write flash</em> command.</p>
 
 <ul>
+<li><strong>A num</strong> - set value of ACCDECSTEPS (approximate amount of steps to do acceleration/deceleration) to <em>num</em></li>
 <li><strong>C#num</strong> - set current <em>speed</em> to <em>num</em> for motor #</li>
-<li><strong>D num</strong> - set <em>denominator</em> to number <em>num</em></li>
-<li><strong>E num</strong> - set <em>numerator</em></li>
+<li><strong>D$num</strong> - set <em>denominator $</em> (<em>D</em> - Vdd, <em>I</em> - current, <em>M</em> - 12V) to number <em>num</em></li>
+<li><strong>E$num</strong> - set <em>numerator $</em></li>
 <li><strong>I num</strong> - set <em>device ID</em></li>
 <li><strong>M#num</strong> - set maxsteps (<em>num</em> is 1..65535) for motor <code>#</code></li>
 <li><strong>P num</strong> - properties of internal pullup (0 - disabled, other or without <code>num</code> - enabled)</li>
@@ -272,13 +273,14 @@ There&rsquo;s only two commands in this section:</p>
 <li><strong>T num</strong> - set <em>end-switches threshold</em> (in ADU, near 0 for Hall switch, 2048 for user button
   and 4096 for released state)</li>
 <li><strong>U num</strong> - set <em>USART speed</em> to <em>num</em> bits per second</li>
+<li><strong>u num</strong> - set value of USTEPS (amount of microsteps per one step)</li>
 </ul>
 
 
 <h3>Motor speed setters</h3>
 
 <p>To set motor speed to <strong>N</strong> steps per second, give command <code>C</code> or <code>S</code> with argument equal to
-3000/N. E.g. to set current speed for DevID=0, motor0 to 50 steps per second give command <code>0SC050</code>.</p>
+3000/N. E.g. to set current speed for DevID=0, motor0 to 50 steps per second give command <code>0SC060</code>.</p>
 
 <h3>Denominator and numerator setters</h3>
 

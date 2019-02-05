@@ -20,41 +20,43 @@
  * MA 02110-1301, USA.
  *
  */
-#include "stm32f0.h"
-#include "proto.h"
 #include "adc.h"
 #include "flash.h"
+#include "proto.h"
+#include "steppers.h"
+#include "stm32f0.h"
 #include "string.h"
 #include "usart.h"
-#include "steppers.h"
 
 static const char *eodata = "DATAEND";
 static const char *badcmd = "BADCMD";
-static const char *allok = "ALL OK";
+static const char *allok = "ALLOK";
 static const char *err = "ERR";
 
-#define EODATA  ((char*)eodata)
-#define BADCMD  ((char*)badcmd)
-#define ALLOK   ((char*)allok)
-#define ERR     ((char*)err)
+#define EODATA  (eodata)
+#define BADCMD  (badcmd)
+#define ALLOK   (allok)
+#define ERR     (err)
 
-static char *getnum(char *buf, int32_t *N);
-static char *get_something(char *str);
-static char *set_something(char *str);
-static char *motor_cmd(char *str);
+static const char *getnum(const char *buf, int32_t *N);
+static const char *get_something(const char *str);
+static const char *set_something(const char *str);
+static const char *motor_cmd(const char *str);
 
-static char *get_status();
-static char *get_conf();
-static char *get_raw_adc();
-static char *get_ADCval(char *str);
-static char *get_temper();
+static const char *get_status(void);
+static const char *get_conf(void);
+static const char *get_raw_adc(void);
+static const char *get_ADCval(const char *str);
+static const char *get_temper(void);
 
-static char *setDenEn(uint8_t De, char *str);
-static char *setDevId(char *str);
-static char *setESWthres(char *str);
-static char *setUSARTspd(char *str);
-static char *setmotvals(char v, char *str);
-static char *setMotSpeed(int cur, char *str);
+static const char *setDenEn(uint8_t De, const char *str);
+static const char *setDevId(const char *str);
+static const char *setESWthres(const char *str);
+static const char *setUSARTspd(const char *str);
+static const char *setUSTEPS(const char *str);
+static const char *setACCDEC(const char *str);
+static const char *setmotvals(char v, const char *str);
+static const char *setMotSpeed(int cur, const char *str);
 
 #define omitwsp(str) do{register char nxt; while((nxt = *str)){if(nxt != ' ' && nxt != '\t') break; else ++str;}}while(0)
 
@@ -62,9 +64,10 @@ static char *setMotSpeed(int cur, char *str);
  * get input buffer `cmdbuf`, parse it and change system state
  * @return message to send
  */
-char* process_command(char *cmdbuf){
+const char* process_command(const char *cmdbuf){
     int32_t num;
-    char *str, c;
+    const char *str;
+    char c;
     #ifdef EBUG
     usart1_send_blocking(cmdbuf);
     #endif
@@ -99,7 +102,7 @@ char* process_command(char *cmdbuf){
 
 // read `buf` and get first integer `N` in it
 // @return pointer to first non-number if all OK or NULL if first symbol isn't a space or number
-static char *getnum(char *buf, int32_t *N){
+static const char *getnum(const char *buf, int32_t *N){
     char c;
     int positive = -1;
     int32_t val = 0;
@@ -130,7 +133,7 @@ static char *getnum(char *buf, int32_t *N){
 
 // get conf (uint16_t) number
 // @return 0 if all OK
-static int getu16(char *buf, uint16_t *N){
+static int getu16(const char *buf, uint16_t *N){
     int32_t N32;
     if(!getnum(buf, &N32)) return 1;
     if(N32 > 0xffff || N32 < 0) return 1;
@@ -138,7 +141,7 @@ static int getu16(char *buf, uint16_t *N){
     return 0;
 }
 
-static char *get_something(char *str){
+static const char *get_something(const char *str){
     switch(*str++){
         case 'A': // get ADC value: voltage or current
             return get_ADCval(str);
@@ -159,8 +162,7 @@ static char *get_something(char *str){
     return BADCMD;
 }
 
-static char *get_status(){
-    int i, j;
+static const char *get_status(){
     char str[3] = {0, '=', 0};
     if(RCC->CSR & RCC_CSR_IWDGRSTF){ // watchdog reset occured
         write2trbuf("WDGRESET=1\n");
@@ -169,7 +171,7 @@ static char *get_status(){
         write2trbuf("SOFTRESET=1\n");
     }
     RCC->CSR = RCC_CSR_RMVF; // clear reset flags
-    for(i = 0; i < 2; ++i){
+    for(int8_t i = 0; i < 2; ++i){
         write2trbuf("MOTOR"); str[0] = '0' + i;
         write2trbuf(str);
         stp_state stt = stp_getstate(i);
@@ -212,7 +214,7 @@ static char *get_status(){
         write2trbuf(str);
         put_int(stp_position(i));
         SENDBUF();
-        for(j = 0; j < 2; ++j){
+        for(int8_t j = 0; j < 2; ++j){
             write2trbuf("ESW"); put2trbuf('0' + i);
             put2trbuf('0' + j); put2trbuf('=');
             ESW_status stat = eswStatus(i, j);
@@ -242,24 +244,38 @@ typedef struct{
     const uint16_t *ptr;
 } user_conf_descr;
 
+typedef struct{
+    const char *fieldname;
+    const uint8_t *ptr;
+} user_conf_descr8;
+
 static const user_conf_descr descrarr[] = {
-    {"CONFSZ", &the_conf.userconf_sz},
-    {"DEVID",  &the_conf.devID},
-    {"V12NUM", &the_conf.v12numerator},
-    {"V12DEN", &the_conf.v12denominator},
-    {"I12NUM", &the_conf.i12numerator},
-    {"I12DEN", &the_conf.i12denominator},
-    {"V33NUM", &the_conf.v33numerator},
-    {"V33DEN", &the_conf.v33denominator},
-    {"ESWTHR", &the_conf.ESW_thres},
-    {"MOT0SPD",&the_conf.motspd[0]},
-    {"MOT1SPD",&the_conf.motspd[1]},
-    {"MAXSTEPS0",&the_conf.maxsteps[0]},
-    {"MAXSTEPS1",&the_conf.maxsteps[1]},
+    {"CONFSZ",      &the_conf.userconf_sz},
+    {"DEVID",       &the_conf.devID},
+    {"V12NUM",      &the_conf.v12numerator},
+    {"V12DEN",      &the_conf.v12denominator},
+    {"I12NUM",      &the_conf.i12numerator},
+    {"I12DEN",      &the_conf.i12denominator},
+    {"V33NUM",      &the_conf.v33numerator},
+    {"V33DEN",      &the_conf.v33denominator},
+    {"ESWTHR",      &the_conf.ESW_thres},
+    {"MOT0SPD",     &the_conf.motspd[0]},
+    {"MOT1SPD",     &the_conf.motspd[1]},
+    {"MAXSTEPS0",   &the_conf.maxsteps[0]},
+    {"MAXSTEPS1",   &the_conf.maxsteps[1]},
     {NULL, NULL}
 };
 
-static char *get_conf(){
+static const user_conf_descr8 descrarr8[] = {
+    {"INTPULLUP",   &the_conf.intpullup},
+    {"REVERSE0",    &the_conf.reverse[0]},
+    {"REVERSE1",    &the_conf.reverse[1]},
+    {"USTEPS",      &the_conf.usteps},
+    {"ACCDECSTEPS", &the_conf.accdecsteps},
+    {NULL, NULL}
+};
+
+static const char *get_conf(){
     const user_conf_descr *curdesc = descrarr;
     do{
         write2trbuf(curdesc->fieldname);
@@ -267,32 +283,31 @@ static char *get_conf(){
         put_uint((uint32_t) *curdesc->ptr);
         SENDBUF();
     }while((++curdesc)->fieldname);
-    write2trbuf("INTPULLUP=");
-    put2trbuf(the_conf.intpullup ? '1' : '0');
-    write2trbuf("\nUSARTSPD=");
+    const user_conf_descr8 *curdesc8 = descrarr8;
+    write2trbuf("USARTSPD=");
     put_uint(the_conf.usartspd);
     SENDBUF();
-    write2trbuf("REVERSE0=");
-    put_uint(the_conf.reverse[0]);
-    write2trbuf("\nREVERSE1=");
-    put_uint(the_conf.reverse[1]);
-    SENDBUF();
+    do{
+        write2trbuf(curdesc8->fieldname);
+        put2trbuf('=');
+        put_uint((uint32_t) *curdesc8->ptr);
+        SENDBUF();
+    }while((++curdesc8)->fieldname);
     return EODATA;
 }
 
-static char *get_raw_adc(){
-    int i;
-    for(i = 0; i < NUMBER_OF_ADC_CHANNELS; ++i){
+static const char *get_raw_adc(){
+    for(int8_t i = 0; i < NUMBER_OF_ADC_CHANNELS; ++i){
         write2trbuf("ADC[");
         put2trbuf('0' + i);
         write2trbuf("]=");
-        put_uint((uint32_t) ADC_array[i]);
+        put_uint((uint32_t) getADCval(i));
         SENDBUF();
     }
     return EODATA;
 }
 
-static char *get_ADCval(char *str){
+static const char *get_ADCval(const char *str){
     uint32_t v;
     switch(*str){
         case 'D': // vdd
@@ -315,7 +330,7 @@ static char *get_ADCval(char *str){
     return NULL;
 }
 
-static char *get_temper(){
+static const char *get_temper(){
     int32_t t = getTemp();
     write2trbuf("TEMP=");
     put_int(t);
@@ -323,8 +338,11 @@ static char *get_temper(){
     return NULL;
 }
 
-static char *set_something(char *str){
+static const char *set_something(const char *str){
     switch(*str++){
+        case 'A': // set accdecsteps
+            return setACCDEC(str);
+        break;
         case 'C': // set current speed
             return setMotSpeed(1, str);
         break;
@@ -358,6 +376,9 @@ static char *set_something(char *str){
         case 'U': // set USART speed
             return setUSARTspd(str);
         break;
+        case 'u': // set usteps
+            return setUSTEPS(str);
+        break;
     }
     return BADCMD;
 }
@@ -367,7 +388,7 @@ static char *set_something(char *str){
  * @param De == 1 for denominator, == 0 for numerator
  * @param str - rest of string
  */
-static char *setDenEn(uint8_t De, char *str){
+static const char *setDenEn(uint8_t De, const char *str){
     uint16_t *targ = NULL;
     switch(*str++){
         case 'D':
@@ -387,19 +408,19 @@ static char *setDenEn(uint8_t De, char *str){
     return ALLOK;
 }
 
-static char *setDevId(char *str){
+static const char *setDevId(const char *str){
     omitwsp(str);
     if(getu16(str, &the_conf.devID)) return BADCMD;
     return ALLOK;
 }
 
-static char *setESWthres(char *str){
+static const char *setESWthres(const char *str){
     omitwsp(str);
     if(getu16(str, &the_conf.ESW_thres)) return BADCMD;
     return ALLOK;
 }
 
-static char *setUSARTspd(char *str){
+static const char *setUSARTspd(const char *str){
     omitwsp(str);
     int32_t N32;
     if(!getnum(str, &N32)) return BADCMD;
@@ -408,40 +429,40 @@ static char *setUSARTspd(char *str){
 }
 
 // if cur == 1 set current speed else set global motspd
-static char *setMotSpeed(int cur, char *str){
+static const char *setMotSpeed(int cur, const char *str){
     omitwsp(str);
-    uint8_t Num = *str++ - '0';
+    uint8_t Num = (uint8_t)(*str++ - '0');
     if(Num > 1) return ERR;
     int32_t spd;
     omitwsp(str);
-    if(!getnum(str, &spd)) return ERR;
-    if(spd < 2 || spd > 6553) return "BadSpd";
+    if(!getnum(str, &spd)) return BADCMD;
+    if(spd < 2 || spd > (0xffff/LOWEST_SPEED_DIV)) return ERR;
     if(cur){ // change current speed
         stp_chARR(Num, spd);
     }else{
-        the_conf.motspd[Num] = spd;
+        the_conf.motspd[Num] = (uint16_t)spd;
         stp_chspd();
     }
     return ALLOK;
 }
 
 // set other motor values
-static char *setmotvals(char v, char *str){
+static const char *setmotvals(char v, const char *str){
     omitwsp(str);
-    uint8_t Num = *str++ - '0';
+    uint8_t Num = (uint8_t)(*str++ - '0');
     if(Num > 1) return ERR;
     omitwsp(str);
     int32_t val;
-    if(!getnum(str, &val)) return ERR;
-    if(val < 0 || val > 0xffff) return "BadUINT16";
+    if(!getnum(str, &val)) return BADCMD;
+    if(val < 0 || val > 0xffff) return ERR;
     switch(v){
         case 'M': // maxsteps
             if(val == 0) return ERR;
-            the_conf.maxsteps[Num] = val;
+            the_conf.maxsteps[Num] = (uint16_t)val;
         break;
         case 'R': // reverse
             if(val && val != 1) return ERR;
-            the_conf.reverse[Num] = val;
+            the_conf.reverse[Num] = (uint8_t)val;
         break;
         default: return ERR;
     }
@@ -449,12 +470,12 @@ static char *setmotvals(char v, char *str){
 }
 
 // process motor command: start/stop
-static char *motor_cmd(char *str){
+static const char *motor_cmd(const char *str){
     omitwsp(str);
-    uint8_t Num = *str++ - '0';
+    uint8_t Num = (uint8_t)(*str++ - '0');
     int32_t steps;
     stp_status st;
-    if(Num > 1) return "Num>1";
+    if(Num > 1) return ERR;
     omitwsp(str);
     switch(*str++){
         case 'M':
@@ -484,4 +505,35 @@ static char *motor_cmd(char *str){
         break;
     }
     return ERR;
+}
+
+// set value of usteps
+static const char *setUSTEPS(const char *str){
+    omitwsp(str);
+    uint16_t x;
+    if(getu16(str, &x)) return BADCMD;
+    switch(x){
+        case 1:
+        case 2:
+        case 4:
+        case 8:
+        case 16:
+        case 32:
+            the_conf.usteps = (uint8_t)x;
+        break;
+        default:
+            return ERR;
+    }
+    return ALLOK;
+}
+
+// set value of accdecsteps
+static const char *setACCDEC(const char *str){
+    omitwsp(str);
+    uint16_t x;
+    if(getu16(str, &x)) return BADCMD;
+    if(x < ACCDECSTEPS_MIN || x > 255) return ERR;
+    the_conf.accdecsteps = (uint8_t)x;
+    stp_chspd();
+    return ALLOK;
 }

@@ -41,31 +41,23 @@ user_conf the_conf = {
     ,.v33denominator = 1
     ,.v33numerator = 1
     ,.ESW_thres = 500
-    ,.usartspd = (uint32_t)115200
-    ,.motspd = {10, 10} // max speed: 300 steps per second
+    ,.usartspd = (uint32_t)9600
+    ,.motspd = {10, 10} // max speed: 300 steps per second, should be LESS than 1310!
     ,.maxsteps = {50000, 50000} // max steps from point to point
     ,.reverse = {0,0}   // set DIR to this value when moving to '+'
     ,.intpullup = 1 // by default internal pullup @ Tx pin enabled
+    ,.usteps = 16
+    ,.accdecsteps = 100
 };
 
-static int erase_flash();
+static int erase_flash(void);
 
 static int get_gooddata(){
     user_conf *c = (user_conf*) FLASH_CONF_START_ADDR;
     // have data - move it to `the_conf`
     int idx;
-//write2trbuf("get_gooddata()\n");
     for(idx = 0; idx < maxnum; ++idx){ // find current settings index - first good
         uint16_t sz = c[idx].userconf_sz;
-/*write2trbuf("idx=");
-put_int((int32_t) idx);
-write2trbuf(", sz=");
-put_uint((uint32_t) sz);
-write2trbuf(", devID=");
-put_uint((uint32_t) c[idx].devID);
-write2trbuf(", ESW_thres=");
-put_uint((uint32_t) c[idx].ESW_thres);
-SENDBUF();*/
         if(sz != sizeof(user_conf)){
             if(sz == 0xffff) break; // first clear
             else{
@@ -93,9 +85,6 @@ int store_userconf(){
         idx = 0;
         if(erase_flash()) return 1;
     }else ++idx; // take next data position
-/*write2trbuf("store_userconf()\nidx=");
-put_int((int32_t) idx);
-SENDBUF();*/
     if (FLASH->CR & FLASH_CR_LOCK){ // unloch flash
         FLASH->KEYR = FLASH_FKEY1;
         FLASH->KEYR = FLASH_FKEY2;
@@ -106,23 +95,12 @@ SENDBUF();*/
     FLASH->CR |= FLASH_CR_PG;
     uint16_t *data = (uint16_t*) &the_conf;
     uint16_t *address = (uint16_t*) &c[idx];
-    uint32_t i, count = sizeof(user_conf) / 2;
+    uint32_t i, count = (1 + sizeof(user_conf)) / 2;
     for (i = 0; i < count; ++i){
         *(volatile uint16_t*)(address + i) = data[i];
         while (FLASH->SR & FLASH_SR_BSY);
         if(FLASH->SR &  FLASH_SR_PGERR) ret = 1; // program error - meet not 0xffff
         else while (!(FLASH->SR & FLASH_SR_EOP));
-/*write2trbuf("write byte ");
-put_int((int32_t) i);
-write2trbuf(", write value=");
-put_uint(data[i]);
-write2trbuf(", read value=");
-put_uint(address[i]);
-SENDBUF();
-if(ret){
-write2trbuf("PGERR");
-SENDBUF();
-}*/
         FLASH->SR = FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPERR;
     }
     FLASH->CR &= ~(FLASH_CR_PG);
@@ -132,17 +110,12 @@ SENDBUF();
 
 static int erase_flash(){
     int ret = 0;
-/*write2trbuf("erase_flash()");
-SENDBUF();*/
     /* (1) Wait till no operation is on going */
     /* (2) Clear error & EOP bits */
     /* (3) Check that the Flash is unlocked */
     /* (4) Perform unlock sequence */
     while ((FLASH->SR & FLASH_SR_BSY) != 0){} /* (1) */
     FLASH->SR = FLASH_SR_EOP | FLASH_SR_PGERR | FLASH_SR_WRPERR;  /* (2) */
-  /*  if (FLASH->SR & FLASH_SR_EOP){
-        FLASH->SR |= FLASH_SR_EOP;
-    }*/
     if ((FLASH->CR & FLASH_CR_LOCK) != 0){ /* (3) */
         FLASH->KEYR = FLASH_FKEY1; /* (4) */
         FLASH->KEYR = FLASH_FKEY2;

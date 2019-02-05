@@ -21,9 +21,9 @@
  *
  */
 #pragma once
-#ifndef __PROTO_H__
-#define __PROTO_H__
+#ifndef PROTO_H__
+#define PROTO_H__
 
-char* process_command(char *cmdbuf);
+const char* process_command(const char *cmdbuf);
 
-#endif // __PROTO_H__
+#endif // PROTO_H__

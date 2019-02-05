@@ -22,14 +22,15 @@
  */
 
 #pragma once
-#ifndef __ADC_H__
-#define __ADC_H__
+#ifndef ADC_H__
+#define ADC_H__
 
-// 8 channels (including inttemp & vrefint)
+#include <stdint.h>
+
+// 6 channels (including inttemp & vrefint)
 #define NUMBER_OF_ADC_CHANNELS (6)
 
-extern uint16_t ADC_array[];
-void adc_setup();
+extern volatile uint32_t Tms; // time counter for 1-second Vdd measurement
 
 typedef enum{
     ESW_RELEASED,
@@ -38,10 +39,12 @@ typedef enum{
     ESW_ERROR
 } ESW_status;
 
-int32_t getTemp();
-uint32_t getVdd();
-uint32_t getVmot();
-uint32_t getImot();
-ESW_status eswStatus(int motnum, int eswnum);
+void        adc_setup(void);
+uint16_t    getADCval(int nch);
+int32_t     getTemp(void);
+uint32_t    getVdd(void);
+uint32_t    getVmot(void);
+uint32_t    getImot(void);
+ESW_status  eswStatus(int motnum, int eswnum);
 
-#endif // __ADC_H__
+#endif // ADC_H__

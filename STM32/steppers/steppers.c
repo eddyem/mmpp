@@ -27,9 +27,9 @@
 #include "usart.h"
 
 // amount of steps need for full acceleration/deceleration cycle
-#define ACCDECSTEPS (50)
+#define ACCDECSTEPS (the_conf.accdecsteps)
 // amount of microsteps in each step
-#define USTEPS      (16)
+#define USTEPS      (the_conf.usteps)
 
 static GPIO_TypeDef* const MPORT[2]   = {GPIOF, GPIOA};
 static const uint16_t MENPIN[2]  = { 1<<0, 1 << 5}; // enable pins: PF0 and PA5
@@ -58,8 +58,8 @@ void stp_chspd(){
     for(i = 0; i < 2; ++i){
         uint16_t spd = the_conf.motspd[i];
         stplowarr[i] = spd;
-        stphigharr[i] = spd * 10;
-        stpsteparr[i] = (spd * 9) / ACCDECSTEPS + 1;
+        stphigharr[i] = spd * LOWEST_SPEED_DIV;
+        stpsteparr[i] = (spd * (LOWEST_SPEED_DIV - 1)) / ((uint16_t)ACCDECSTEPS) + 1;
     }
 }
 
@@ -106,34 +106,25 @@ void stp_process(){
     esw[0] = eswStatus(0, 0);
     esw[1] = eswStatus(0, 1);
     if(esw[0] == ESW_BUTTON || esw[1] == ESW_BUTTON){
-        if(lastbtnpressed++ == 3){ // stop all motors @ button
-//~ write2trbuf("1stpress");
-//~ SENDBUF();
+        if(lastbtnpressed++ == 5){ // stop all motors @ button
             uint8_t stopped = 0;
             if(state[0] != STP_SLEEP){
-//~ write2trbuf("stopmot0");
-//~ SENDBUF();
                 state[0] = STP_STOP;
                 stopped = 1;
             }
             if(state[1] != STP_SLEEP){
-//~ write2trbuf("stopmot1");
-//~ SENDBUF();
                 state[1] = STP_STOP;
                 stopped = 1;
             }
-            if(stopped) lastbtnpressed = 111; // override value
-        }else if(lastbtnpressed == 100){ // one or both buttons pressed, run only after ~100ms
-//~ write2trbuf("lastbtnpressed");
-//~ SENDBUF();
+            if(stopped){
+                DBG("S(btn)\n");
+                lastbtnpressed = 51; // override value
+            }
+        }else if(lastbtnpressed == 50){ // one or both buttons pressed, run only after ~100ms
             if(esw[0] == ESW_BUTTON && esw[1] == ESW_BUTTON){
-//~ write2trbuf("both");
-//~ SENDBUF();
                 // both buttons pressed - move MOTOR1 to zero
                 state[1] = STP_MOVE0;
             }else{ // move motor 0 to 0 or 1
-//~ write2trbuf("single");
-//~ SENDBUF();
                 if(esw[0] == ESW_BUTTON) state[0] = STP_MOVE0;
                 else state[0] = STP_MOVE1;
             }
@@ -148,35 +139,21 @@ void stp_process(){
             case STP_MOVE0: // move towards zero endswitch
                 state[i] = STP_SLEEP;
                 stp_move(i, -the_conf.maxsteps[i]); // won't move if the_conf.maxsteps == 0
-//~ write2trbuf("MOTOR");
-//~ put2trbuf('0'+i);
-//~ write2trbuf(" move0");
-//~ SENDBUF();
             break;
             case STP_MOVE1:
                 state[i] = STP_SLEEP;
                 stp_move(i, the_conf.maxsteps[i]);
-//~ write2trbuf("MOTOR");
-//~ put2trbuf('0'+i);
-//~ write2trbuf(" move1");
-//~ SENDBUF();
             break;
             case STP_ACCEL: // @ any move check esw
             case STP_DECEL:
             case STP_MOVE:
             case STP_MVSLOW: // check end-switches status
                 if(esw[0] == ESW_HALL && dir[i] == -1){
+                    DBG("S@0\n");
                     state[i] = STP_STOPZERO; // stop @ end-switch
-//~ write2trbuf("MOTOR");
-//~ put2trbuf('0'+i);
-//~ write2trbuf(" stop on zero end-switch");
-//~ SENDBUF();
                 }else{ if(esw[1] == ESW_HALL && dir[i] ==  1){
                     state[i] = STP_STOP; // stop @ end-switch 1
-//~ write2trbuf("MOTOR");
-//~ put2trbuf('0'+i);
-//~ write2trbuf(" stop on sw1");
-//~ SENDBUF();
+                    DBG("S@1\n");
                     }
                 }
             break;
@@ -192,12 +169,12 @@ stp_status stp_move(int nmotor, int32_t steps){
     if(st != STP_SLEEP && st != STP_MOVE0 && st != STP_MOVE1) return STPS_ACTIVE;
     if(steps == 0)
         return STPS_ZEROMOVE;
+    if(the_conf.maxsteps[nmotor] && steps > the_conf.maxsteps[nmotor]) return STPS_TOOBIG;
     int8_t d;
     if(steps < 0){
         d = -1;
         steps = -steps;
     }else d = 1; // positive direction
-    if(the_conf.maxsteps[nmotor] && steps > the_conf.maxsteps[nmotor]) return STPS_TOOBIG;
     // check end-switches
     if(eswStatus(nmotor, 0) == ESW_HALL && d == -1) return STPS_ONESW;
     if(eswStatus(nmotor, 1) == ESW_HALL && d == 1)  return STPS_ONESW;
@@ -216,7 +193,7 @@ stp_status stp_move(int nmotor, int32_t steps){
     }
     // turn on EN pin (0)
     pin_clear(MPORT[nmotor], MENPIN[nmotor]);
-    steps_left[nmotor] = steps;
+    steps_left[nmotor] = (uint32_t)steps;
     // setup timer & start it
     TIM_TypeDef *TIMx = nmotor ? TIM3 : TIM14;
     TIMx->ARR = stphigharr[nmotor];
@@ -231,7 +208,7 @@ stp_status stp_move(int nmotor, int32_t steps){
 void stp_chARR(int n, int32_t val){
     TIM_TypeDef *TIMx = n ? TIM3 : TIM14;
     if(val < 2) val = 2;
-    TIMx->ARR = val;
+    TIMx->ARR = (uint32_t)val;
 }
 
 void stp_stop(int n){ // stop motor by demand or @ end-switch
@@ -265,25 +242,30 @@ static void stpr_int(int n){
     }else return;
     switch(state[n]){
         case STP_ACCEL: // acceleration phase
-            arrval = TIMx->ARR - stpsteparr[n];
+            arrval = (uint16_t)TIMx->ARR - stpsteparr[n];
             tmp = stplowarr[n];
             if(arrval <= tmp || arrval > stphigharr[n]){
                 arrval = tmp;
                 state[n] = STP_MOVE; // end of acceleration phase
+                DBG("AccEnd\n");
             }
             TIMx->ARR = arrval;
         break;
         case STP_DECEL: // deceleration phase
-            arrval = TIMx->ARR + stpsteparr[n];
+            arrval = (uint16_t)TIMx->ARR + stpsteparr[n];
             tmp = stphigharr[n];
             if(arrval >= tmp || arrval < stplowarr[n]){
                 arrval = tmp;
                 state[n] = STP_MVSLOW; // end of deceleration phase, move @ lowest speed
+                DBG("DecEnd\n");
             }
             TIMx->ARR = arrval;
         break;
         case STP_MOVE:   // moving with constant speed phases
-            if(steps_left[n] <= ACCDECSTEPS) state[n] = STP_DECEL; // change moving status to decelerate
+            if(steps_left[n] <= ACCDECSTEPS){
+                state[n] = STP_DECEL; // change moving status to decelerate
+                DBG("->Dec\n");
+            }
         break;
         case STP_MVSLOW:
             // nothing to do here: all done before switch()
@@ -296,6 +278,7 @@ static void stpr_int(int n){
             dir[n] = 0;
             steps_left[n] = 0;
             state[n] = STP_SLEEP;
+            DBG("Stop\n");
         break;
     }
 }

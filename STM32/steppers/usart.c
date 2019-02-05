@@ -27,8 +27,8 @@ extern volatile uint32_t Tms;
 
 static int datalen[2] = {0,0}; // received data line length (including '\n')
 
+static int dlen = 0;    // length of data (including '\n') in current buffer
 int linerdy = 0,        // received data ready
-    dlen = 0,           // length of data (including '\n') in current buffer
     bufovr = 0,         // input buffer overfull
     txrdy = 1           // transmission done
 ;
@@ -113,7 +113,7 @@ void usart1_isr(){
         if(!tmout) tmout = 1; // prevent 0
         #endif
         // read RDR clears flag
-        uint8_t rb = USART1->RDR;
+        char rb = (char)USART1->RDR;
         if(datalen[rbufno] < UARTBUFSZ){ // put next char into buf
             rbuf[rbufno][datalen[rbufno]++] = rb;
             if(rb == '\n'){ // got newline - line ready
@@ -177,13 +177,13 @@ TXstatus usart1_send(char *str){
     return ALL_OK;
 }*/
 
-TXstatus usart1_send(char *str){
+TXstatus usart1_send(const char *str){
     if(!txrdy) return LINE_BUSY;
-    int i;
-    for(i = 0; i < UARTBUFSZ; ++i){
+    if(*str == 0) return ALL_OK;
+    for(int i = 0; i < UARTBUFSZ; ++i){
         char c = *str++;
-        if(c == 0){ c = '\n'; i = UARTBUFSZ;}
-        USART1->TDR = c;
+        if(c == 0){c = '\n'; i = UARTBUFSZ;}
+        USART1->TDR = (uint16_t)c;
         while(!(USART1->ISR & USART_ISR_TXE));
     }
     txrdy = 1;

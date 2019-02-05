@@ -21,10 +21,16 @@
  *
  */
 #pragma once
-#ifndef __STEPPERS_H__
-#define __STEPPERS_H__
+#ifndef STEPPERS_H__
+#define STEPPERS_H__
 
 #include "stm32f0.h"
+#include <stdint.h>
+
+// the lowest speed equal to [max speed] / LOWEST_SPEED_DIV
+#define LOWEST_SPEED_DIV    (30)
+// minimal value of ACCDECSTEPS
+#define ACCDECSTEPS_MIN     (30)
 
 extern int32_t mot_position[];
 extern uint32_t steps_left[];
@@ -54,12 +60,12 @@ typedef enum{
 #define stp_stepsleft(n)    (steps_left[n])
 
 stp_state stp_getstate(int motnum);
-void stp_setup();
-void stp_chspd();
+void stp_setup(void);
+void stp_chspd(void);
 stp_status stp_move(int nmotor, int32_t steps);
 void stp_stop(int n);
-void stp_process();
-void stp_disable();
+void stp_process(void);
+void stp_disable(void);
 void stp_chARR(int n, int32_t val);
 
-#endif // __STEPPERS_H__
+#endif // STEPPERS_H__

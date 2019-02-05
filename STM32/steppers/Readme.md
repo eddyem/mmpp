@@ -148,7 +148,7 @@ Getters returning more than one field ends with `DATAEND` meaning that's all dat
 
 
 ### Motors' manipulation
-Next char should be '0' or '1' --- motor's number. If wrong, `Num>1` answer would be returned.
+Next char should be '0' or '1' --- motor's number. If wrong, `BADCMD` answer would be returned.
 There's only two commands in this section:
 
 * **Mnum** - move motor to *num* steps. Errors:
@@ -164,9 +164,10 @@ There's only two commands in this section:
 Change of any setter takes place in MCU RAM immediately. To store them permanently run
 *write flash* command.
 
+* **A num** - set value of ACCDECSTEPS (approximate amount of steps to do acceleration/deceleration) to *num*
 * **C#num** - set current *speed* to *num* for motor #
-* **D num** - set *denominator* to number *num*
-* **E num** - set *numerator*
+* **D$num** - set *denominator $* (*D* - Vdd, *I* - current, *M* - 12V) to number *num*
+* **E$num** - set *numerator $*
 * **I num** - set *device ID*
 * **M#num** - set maxsteps (*num* is 1..65535) for motor `#`
 * **P num** - properties of internal pullup (0 - disabled, other or without `num` - enabled)
@@ -175,10 +176,11 @@ Change of any setter takes place in MCU RAM immediately. To store them permanent
 * **T num** - set *end-switches threshold* (in ADU, near 0 for Hall switch, 2048 for user button
     and 4096 for released state)
 * **U num** - set *USART speed* to *num* bits per second
+* **u num** - set value of USTEPS (amount of microsteps per one step)
 
 ### Motor speed setters
 To set motor speed to **N** steps per second, give command `C` or `S` with argument equal to
-3000/N. E.g. to set current speed for DevID=0, motor0 to 50 steps per second give command `0SC050`.
+3000/N. E.g. to set current speed for DevID=0, motor0 to 50 steps per second give command `0SC060`.
 
 ### Denominator and numerator setters
 Have naxt letter similar to ADC getter (**D** - Vdd, **I** - motors' I, or **M** - motors' U).
