@@ -67,7 +67,7 @@ static myoption cmdlnopts[] = {
     {"wait",    NO_ARGS,    NULL,   'w',    arg_none,   APTR(&G.waitold),   N_("wait while all previous moving ends")},
     {"async",   NO_ARGS,    NULL,   'y',    arg_none,   APTR(&G.dontwait),  N_("asynchronous moving - don't wait")},
     {"lin1",    NEED_ARG,   NULL,   'L',    arg_int,    APTR(&G.l1steps),   N_("move polaroid linear stage to N steps")},
-    {"lin2",    NEED_ARG,   NULL,   'l',    arg_int,    APTR(&G.l2steps),   N_("move waveplate linear stage to N steps")},
+    {"lin2",    NEED_ARG,   NULL,   'l',    arg_int,    APTR(&G.l2steps),   N_("move wave-plate linear stage to N steps")},
     {"pidfile", NEED_ARG,   NULL,   'p',    arg_string, APTR(&G.pidfile),   N_("PID-file name")},
     {"stop",    NO_ARGS,    NULL,   'S',    arg_none,   APTR(&G.stopall),   N_("stop any moving")},
     end_option

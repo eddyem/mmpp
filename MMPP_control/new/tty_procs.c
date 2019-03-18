@@ -278,7 +278,7 @@ static void ttystat(){
     char buff[TBUFLEN+1];
     if(!quiet) green("Pol: M0ST M0LEFT M0POS  - M1ST M1LEFT M1POS  || L/4: M0ST M0LEFT M0POS  - M1ST M1LEFT M1POS \n");
     if(alive[1]) chk1 = parsestatus("1GS");
-    MSG(NULL, "Pol: ");
+    if(!quiet) printf("Pol: ");
     if(chk1 == -1){
         if(!quiet) printf("%39s", "failed");
     }else printf("%s", bufo);

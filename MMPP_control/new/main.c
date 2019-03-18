@@ -142,7 +142,10 @@ int main(int argc, char **argv){
     }
 
     if(handshake()) signals(RET_NOTFOUND); // test connection & get all positions
-    if(G->waitold) if(tty_wait()) signals(RET_WAITERR);
+    if(G->waitold){
+        if(tty_wait()) signals(RET_WAITERR);
+        handshake();
+    }
     if(G->showtemp){
         if(tty_showtemp() != 2) rtn_status = RET_ONLYONE;
     }
