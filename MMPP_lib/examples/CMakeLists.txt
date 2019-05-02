@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.9)
+project(examples)
+link_libraries(mmpp)
+include_directories(../)
+
+#target_link_libraries(hello -lm)
+#add_executable(movestages movecmdlnopts.c move.c)
+#target_link_libraries(movestages -lusefull_macros)
+add_executable(testmove tmcmdlnopts.c tm.c)
+target_link_libraries(testmove -lusefull_macros)

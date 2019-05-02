@@ -21,9 +21,9 @@
  *
  */
 
-#include "cmdlnopts.h"
+#include "movecmdlnopts.h"
 #include "signal.h"
-#include "tty_procs.h"
+#include <libmmpp.h>
 #include <stdio.h>
 #include <string.h>
 #include <usefull_macros.h>
@@ -53,7 +53,7 @@ void __attribute__((noreturn)) signals(int sig){
     if(G->pidfile) // remove unnesessary PID file
         unlink(G->pidfile);
     restore_console();
-    tty_close();
+    mmpp_close();
     exit(sig);
 }
 
@@ -136,8 +136,8 @@ int main(int argc, char **argv){
     G = parse_args(argc, argv);
     check4running(NULL, G->pidfile);
     DBG("Try to open serial %s", G->comdev);
-    if(tty_tryopen(G->comdev, G->speed)){
-        ERR(_("Can't open %s with speed %d. Exit."), G->comdev, G->speed);
+    if(mmpp_tryopen(G->comdev, G->speed)){
+        ERRX(_("Can't open %s with speed %d. Exit."), G->comdev, G->speed);
     }
 
     if(handshake()) signals(RET_NOTFOUND); // test connection & get all positions
@@ -146,7 +146,7 @@ int main(int argc, char **argv){
         handshake();
     }
     if(G->showtemp){
-        if(tty_showtemp() != 2) rtn_status = RET_ONLYONE;
+        if(showtemp() != 2) rtn_status = RET_ONLYONE;
     }
     if(G->stopall){ // stop everything before analyze other commands
         if(tty_stopall()) rtn_status = RET_COMMERR;
