@@ -62,11 +62,14 @@ endif()
 endif(0)
 
 ###### pkgconfig ######
-# pkg-config modules (for pkg-check-modules)
-#set(MODULES cfitsio fftw3)
+set(MODULES libudev)
 # find packages:
-#find_package(PkgConfig REQUIRED)
-#pkg_check_modules(${PROJ} REQUIRED ${MODULES})
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(${PROJ} REQUIRED ${MODULES})
+pkg_check_modules(USB libusb)
+if(NOT USB_FOUND)
+    pkg_check_modules(USB REQUIRED libusb-1.0)
+endif()
 
 # external modules like OpenMP:
 include(FindOpenMP)
@@ -88,7 +91,7 @@ set(RU_FILE ${LCPATH}/ru.po)
 # library
 add_library(${PROJ} SHARED ${SOURCES})
 # library header files
-set(LIBHEADER "usefull_macros.h")
+set(LIBHEADER "libmmpp.h")
 # -I
 include_directories(${${PROJ}_INCLUDE_DIRS})
 # -L
@@ -114,6 +117,8 @@ include(GNUInstallDirs)
 install(TARGETS ${PROJ} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES ${PCFILE} DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+install(FILES "99-edmund_hsfw.rules" DESTINATION "/etc/udev/rules.d")
+
 
 # EXAMPLES
 if(DEFINED EXAMPLES AND EXAMPLES EQUAL 1)

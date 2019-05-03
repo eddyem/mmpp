@@ -89,12 +89,48 @@ int get_temp(double *t1, double *t2);
 bool mot_getstatus(int Nmcu, motor_state *s);
 int init_motors();
 int mot_wait();
+ttysend_status tty_sendcmd(char *cmd);
 
 char *tty_get();
 int tty_send(char *cmd);
-ttysend_status tty_sendcmd(char *cmd);
 char* tty_sendraw(char *string);
 
+/************************************************************************************
+ *                               Wheels management                                  *
+ ************************************************************************************/
+#define WHEEL_VID "10c4"
+#define WHEEL_PID "82cd"
 
+// wheel descriptor
+typedef struct{
+    int fd;         // file descriptor of device
+    char *serial;   // serial number
+    char ID;        // identificator
+    char name[9];   // wheel name
+    int maxpos;     // max position
+} wheel_descr;
+
+typedef enum{
+     WHERR_ALLOK    // no errors
+    ,WHERR_UDEV     // udev error
+    ,WHERR_CANTOPEN // can't open file device
+} wheel_error;
+
+int find_wheels(wheel_descr **wheels, wheel_error *err);
+void del_wheels(wheel_descr *w, int N);
+
+// return value of polling wheel status (if > -1 - current position)
+typedef enum{
+     WHEEL_MOVING = -2  // still moving
+    ,WHEEL_ERROR  = -1  // communication error
+    ,WHEEL_POSERR = 0   // wrong wheel position
+    ,WHEEL_POS1, WHEEL_POS2, WHEEL_POS3, WHEEL_POS4, WHEEL_POS5, WHEEL_POS6
+    ,WHEEL_POS7, WHEEL_POS8, WHEEL_POS9, WHEEL_POS10
+} wheel_status;
+
+wheel_status wheel_getpos(wheel_descr *w);
+bool wheel_clear_err(wheel_descr *w);
+bool move_wheel(wheel_descr *w, int filter_pos);
+bool wheel_home(wheel_descr *w);
 
 #endif // LIBMMPP_H__

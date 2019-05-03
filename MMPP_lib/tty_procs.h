@@ -20,6 +20,7 @@
 #ifndef TTY_PROCS_H__
 #define TTY_PROCS_H__
 
+#include "common.h"
 #include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -29,45 +30,6 @@
 #define TBUFLEN         (1024)
 // read timeout (in seconds)
 #define TTYTIMEOUT      (0.05)
-
-// unused arguments of functions
-#define _U_         __attribute__((__unused__))
-// break absent in `case`
-#define FALLTHRU    __attribute__ ((fallthrough))
-// and synonym for FALLTHRU
-#define NOBREAKHERE __attribute__ ((fallthrough))
-// weak functions
-#define WEAK        __attribute__ ((weak))
-
-#define COLOR_RED           "\033[1;31;40m"
-#define COLOR_GREEN         "\033[1;32;40m"
-#define COLOR_OLD           "\033[0;0;0m"
-/*
- * print function name, debug messages
- * debug mode, -DEBUG
- */
-#ifdef EBUG
-    #define FNAME() do{ fprintf(stderr, COLOR_OLD); \
-        fprintf(stderr, "\n%s (%s, line %d)\n", __func__, __FILE__, __LINE__);} while(0)
-    #define DBG(...) do{ fprintf(stderr, COLOR_OLD); \
-                    fprintf(stderr, "%s (%s, line %d): ", __func__, __FILE__, __LINE__); \
-                    fprintf(stderr, __VA_ARGS__);           \
-                    fprintf(stderr, "\n");} while(0)
-#else
-    #define FNAME()  do{}while(0)
-    #define DBG(...) do{}while(0)
-#endif //EBUG
-
-/*
- * Memory allocation
- */
-#define ALLOC(type, var, size)  type * var = ((type *)my_alloc(size, sizeof(type)))
-#define MALLOC(type, size) ((type *)my_alloc(size, sizeof(type)))
-#define FREE(ptr)  do{if(ptr){free(ptr); ptr = NULL;}}while(0)
-
-#ifndef DBL_EPSILON
-#define DBL_EPSILON        (2.2204460492503131e-16)
-#endif
 
 typedef struct {
     char *portname;         // device filename (should be freed before structure freeing)
@@ -82,7 +44,6 @@ typedef struct {
     bool exclusive;         // should device be exclusive opened
 } TTYdescr;
 
-void *my_alloc(size_t N, size_t S);
 int str2double(double *num, const char *str);
 double dtime();
 TTYdescr *new_tty(char *comdev, int speed, size_t bufsz);
