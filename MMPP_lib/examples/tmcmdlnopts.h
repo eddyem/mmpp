@@ -31,6 +31,14 @@ typedef struct{
     int stopall;        // stop all motors
     int speed;          // TTY speed
     int getstatus;      // get status of all devices
+    char **sendraw;     // send raw command[s]
+    int getADC;         // get ADC values
+    double rot1angle;   // rotator 1 angle
+    double rot2angle;   // rotator 2 angle
+    int l1steps;        // move linear stage 1 (polaroid) for N steps
+    int l2steps;        // move linear stage 2 (L/4) for N steps
+    int absmove;        // absolute move (to given position from zero-esw)
+    int **reset;        // reset given MCU's
 } glob_pars;
 
 // default & global parameters

@@ -19,6 +19,10 @@
 #ifndef LIBMMPP_H__
 #define LIBMMPP_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 // default baudrate for communication
@@ -55,7 +59,9 @@ typedef enum{
     SEND_TOOBIG,    // amount of steps too big
     SEND_ZEROMOVE,  // give 0 steps to move
     SEND_ESWITCH,   // staying on end-switch & try to move further
-    SEND_OTHER
+    SEND_NEEDINIT,  // motor needs initialisation
+    SEND_NEGATMOVE, // try to move to negative position
+    SEND_OTHER,     // unknown state
 } ttysend_status;
 // end-switch state
 typedef enum{
@@ -78,18 +84,27 @@ typedef struct{
     int curpos[2];              // current position (negative for non-initialized state or error)
     ESW_status ESW_status[2][2];// End-switches status, [i][j], i - motor, j - esw 0 or 1
 } motor_state;
+// ADC state
+typedef struct{
+    double Vdd;     // value of Vdd (+3.3V)
+    double Imot;    // motors' current (Amperes)
+    double Vmot;    // motors' voltage (+12V)
+} ADC_state;
 
 int mmpp_tryopen(char *dev, int spd);
 void mmpp_close();
 int mot_handshake();
+bool mot_getstatus(int Nmcu, motor_state *s);
 bool get_rst(int N, bool clear);
 bool get_alive(int N);
 int stop_all();
 int get_temp(double *t1, double *t2);
-bool mot_getstatus(int Nmcu, motor_state *s);
 int init_motors();
 int mot_wait();
 ttysend_status tty_sendcmd(char *cmd);
+bool get_ADC(int N, ADC_state *s);
+ttysend_status movemotor(int mcu, int motnum, int steps, int absmove);
+void reset_MCU(int N);
 
 char *tty_get();
 int tty_send(char *cmd);
@@ -132,5 +147,9 @@ wheel_status wheel_getpos(wheel_descr *w);
 bool wheel_clear_err(wheel_descr *w);
 bool move_wheel(wheel_descr *w, int filter_pos);
 bool wheel_home(wheel_descr *w);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LIBMMPP_H__

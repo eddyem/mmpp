@@ -80,10 +80,6 @@ static int parsemotans(ttysend_status ans, const char *prefix){
 }
 
 /**
- * move motor
- * @return 0 if motor can't move, else return 1
- */
-/**
  * @brief movemotor - move motor
  * @param mcu     - MCU# (controller No, 1 or 2)
  * @param motnum  - motor# (0 or 1)

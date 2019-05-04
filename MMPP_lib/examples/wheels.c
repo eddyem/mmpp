@@ -16,6 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/******************************************************************************
+ *                         Wheels testing tool                                *
+ ******************************************************************************/
+
 #include "wheelscmdlnopts.h"
 #include <signal.h>
 #include <stdio.h>
@@ -91,31 +95,33 @@ int main(int argc, char **argv){
             printf("\tmaxpos: %d\n\n", wheels[i].maxpos);
         }
     }
-    if(G->gohome){
+    if(G->gohome){ // non-blocking moving to home position
         for(int i = 0; i < found; ++i){
             if(!wheel_home(&wheels[i])) WARNX(_("Can't move wheel %c to home position"), wheels[i].ID);
             else{
                 green("Wheel %c is moving to home position\n");
             }
         }
+        // now we can wait until all wheels reach home position
         for(int i = 0; i < found; ++i){
             while(WHEEL_MOVING == wheel_getpos(&wheels[i])){
                 usleep(100000);
             }
+            // we should check current position because wheel can be blocked and don't move
             if(wheel_getpos(&wheels[i]) != 1)
                 WARNX(_("Wheel %c didn't reach home position"), wheels[i].ID);
         }
     }
     int Nw = 0, Ng = 0;
-    if(G->wh_ids){
+    if(G->wh_ids){ // count arguments of --wheel-id
         while(G->wh_ids[Nw]) ++Nw;
     }
-    if(G->gotopos){
+    if(G->gotopos){ // count arguments of --goto
         while(G->gotopos[Ng]) ++Ng;
     }
-    if(Nw != Ng){
+    if(Nw != Ng){ // it's better to write --goto after each --wheel-id
         WARNX(_("Amoung of `--wheel-id` should be equal to amount of `--goto`!"));
-    }else{
+    }else{ // here is an example of searching wheel by its ID and blocking moving
         for(int i = 0; i < Nw; ++i){
             char ID = *G->wh_ids[i];
             DBG("id: %c, goto: %d", ID, *G->gotopos[i]);
@@ -126,12 +132,12 @@ int main(int argc, char **argv){
                 if(!move_wheel(w, pos)){
                     WARNX(_("Can't rotate wheel %c to position %d"), ID, pos);
                     wheel_clear_err(w);
-                }else{
+                }else{ // wait until wheel is moving
                     while(WHEEL_MOVING == wheel_getpos(w)){
                         DBG("still moving");
                         usleep(100000);
                     }
-                    int curpos = wheel_getpos(w);
+                    int curpos = wheel_getpos(w); // poll again to check current position
                     if(curpos != pos) WARNX(_("Wheel %c can't reach position %d, current position: %d"), ID, pos, curpos);
                     else green("Wheel %c is on position %d\n", ID, pos);
                 }

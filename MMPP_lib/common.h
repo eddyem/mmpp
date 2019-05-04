@@ -46,10 +46,15 @@
                     fprintf(stderr, "%s (%s, line %d): ", __func__, __FILE__, __LINE__); \
                     fprintf(stderr, __VA_ARGS__);           \
                     fprintf(stderr, "\n");} while(0)
+    #define red(...) do{printf(COLOR_RED); printf(__VA_ARGS__); printf(COLOR_OLD);}while(0)
+    #define green(...) do{printf(COLOR_GREEN); printf(__VA_ARGS__); printf(COLOR_OLD);}while(0)
 #else
-    #define FNAME()  do{}while(0)
-    #define DBG(...) do{}while(0)
+    #define FNAME()
+    #define DBG(...)
+    #define red(...)
+    #define green(...)
 #endif //EBUG
+
 
 /*
  * Memory allocation

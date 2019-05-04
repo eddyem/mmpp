@@ -36,6 +36,10 @@ glob_pars const Gdefault = {
      .comdev = "/dev/ttyUSB0"
     ,.pidfile = "/tmp/MMPP_con.pid"
     ,.speed = BAUD_RATE
+    ,.rot1angle = -1000.
+    ,.rot2angle = -1000.
+    ,.l1steps = INT_MAX
+    ,.l2steps = INT_MAX
 };
 
 /*
@@ -51,6 +55,14 @@ static myoption cmdlnopts[] = {
     {"stopall", NO_ARGS,    NULL,   's',    arg_none,   APTR(&G.stopall),   N_("stop all motors")},
     {"gettemp", NO_ARGS,    NULL,   't',    arg_none,   APTR(&G.gettemp),   N_("get MCU temperature")},
     {"status",  NO_ARGS,    NULL,   'S',    arg_none,   APTR(&G.getstatus), N_("get device status")},
+    {"sendraw", MULT_PAR,   NULL,   'W',    arg_string, APTR(&G.sendraw),   N_("send raw command (you can use this flag several times)")},
+    {"getADC",  NO_ARGS,    NULL,   'A',    arg_none,   APTR(&G.getADC),    N_("get ADC values for both MCUs")},
+    {"absmove", NO_ARGS,    NULL,   'a',    arg_none,   APTR(&G.absmove),   N_("absolute move (without this flag moving is relative)")},
+    {"rot1",    NEED_ARG,   NULL,   'R',    arg_double, APTR(&G.rot1angle), N_("rotate polaroid to given angle")},
+    {"rot2",    NEED_ARG,   NULL,   'r',    arg_double, APTR(&G.rot2angle), N_("rotate lambda/4 to given angle")},
+    {"lin1",    NEED_ARG,   NULL,   'L',    arg_int,    APTR(&G.l1steps),   N_("move polaroid linear stage to N steps")},
+    {"lin2",    NEED_ARG,   NULL,   'l',    arg_int,    APTR(&G.l2steps),   N_("move wave-plate linear stage to N steps")},
+    {"reset",   MULT_PAR,   NULL,   'E',    arg_int,    APTR(&G.reset),     N_("reset given mcu (may be included several times)")},
     end_option
 };
 

@@ -44,6 +44,7 @@ static bool reset[3] = {false,false,false}; // reset occured
  * @return 0 if all OK
  */
 int mmpp_tryopen(char *devnm, int spd){
+    if(dev) close_tty(&dev);
     dev = new_tty(devnm, spd, 256);
     if(!dev) return 1;
     if(!tty_open(dev, true)) return 1;
@@ -54,6 +55,7 @@ int mmpp_tryopen(char *devnm, int spd){
  * @brief tty_close - close TTY device
  */
 void mmpp_close(){
+    if(!dev) return;
     close_tty(&dev);
 }
 
@@ -89,7 +91,7 @@ int mot_handshake(){
 }
 
 /**
- * Get temperature of both MCU
+ * Get temperature of both MCUs
  * @param t1, t2 (o) - temperatures of first and second MCUs (==-300 if error)
  * @return amount of successful calls
  */
@@ -156,25 +158,28 @@ int init_motors(){
         }
     }
     if(!needinit) return 0;
-    DBG("Need to init, start!");
+    red("Need to init, start!\n");
     for(Nmcu = 1; Nmcu < 3; ++Nmcu){
     for(motnum = 0; motnum < 2; ++motnum){
         int pos = S[Nmcu].curpos[motnum];
         if(pos >= 0) continue;
         // check if we are on zero endswitch
         if(S[Nmcu].ESW_status[motnum][0] == ESW_HALL){ // move a little from zero esw
+            red("from esw\n");
             sprintf(buf, "%dM%dM100", Nmcu, motnum);
             if(SEND_ERR == tty_sendcmd(buf)){
                 return RETVAL();
             }
             mot_wait();
         }
-        sprintf(buf, "%dM%dM-400", Nmcu, motnum);
+        sprintf(buf, "%dM%dM-40000", Nmcu, motnum);
         if(SEND_ALLOK != tty_sendcmd(buf)){
             return RETVAL();
         }
     }}
     mot_wait();
+    green("check\n");
+    // check current positions
     for(Nmcu = 1; Nmcu < 3; ++Nmcu){
         if(!mot_getstatus(Nmcu, &S[Nmcu])) return 10*Nmcu+2;
         for(motnum = 0; motnum < 2; ++motnum){
@@ -203,7 +208,7 @@ int mot_wait(){
             motor_state S;
             if(!mot_getstatus(Nmcu, &S)){
                 ++failcount;
-            }
+            }else failcount = 0;
             if(S.state[0] == STP_SLEEP && S.state[1] == STP_SLEEP)
                 mov[Nmcu] = false;
         }
@@ -220,6 +225,7 @@ int mot_wait(){
  * @return static buffer with data read or NULL
  */
 char *tty_get(){
+    if(!dev) return NULL;
     static char buf[TBUFLEN];
     char *ptr = buf;
     size_t L = 0, l = TBUFLEN;
@@ -247,6 +253,7 @@ char *tty_get(){
  * @return 0 if failed
  */
 int tty_send(char *cmd){
+    if(!dev) return 0;
     size_t l = 0;
     char *s = cpy2buf(cmd, &l);
     if(!s) return 0;
@@ -260,6 +267,7 @@ int tty_send(char *cmd){
  * @return string received or NULL in case of error
  */
 char* tty_sendraw(char *string){
+    if(!dev) return NULL;
     DBG("sendraw %s", string);
     if(!tty_send(string)) return NULL;
     return tty_get();
@@ -371,5 +379,84 @@ bool get_rst(int N, bool clear){
  * @return alive[N]
  */
 bool get_alive(int N){
+    if(N < 1 || N > 2) return false;
     return alive[N];
+}
+
+/**
+ * @brief get_ADC - ADC values
+ * @param N     - number of MCU (1 or 2)
+ * @param s (o) - state of all ADC channels
+ * @return true if all OK
+ */
+bool get_ADC(int N, ADC_state *s){
+    if(N < 1 || N > 2 || !s || !alive[N]) return false;
+    char buff[] = "xGAy", cmds[3] = "DIM", *ansv[] = {"VDD", "IMOT", "VMOT"};
+    double *vals[3] = {&s->Vdd, &s->Imot, &s->Vmot};
+    int got = 0;
+    buff[0] = '0' + N;
+    for(int i = 0; i < 3; ++i){
+        buff[3] = cmds[i];
+        char *ans = tty_sendraw(buff);
+        if(!ans) continue;
+        char *v = keyval(ansv[i], ans);
+        if(v){
+            double t;
+            if(str2double(&t, v)){
+                *vals[i] = t / 100.;
+                DBG("Got %s=%g", ansv[i], *vals[i]);
+                ++got;
+            }
+        }
+    }
+    if(got != 3) return false;
+    return true;
+}
+
+/**
+ * @brief reset_MCU - reset given controller
+ * @param N - MCU # (1 or 2)
+ */
+void reset_MCU(int N){
+    if(N < 1 || N > 2) return;
+    char cmd[] = "xR";
+    cmd[0] = '0' + N;
+    tty_sendraw(cmd);
+}
+
+/**
+ * @brief movemotor - move motor
+ * @param mcu     - MCU# (controller No, 1 or 2)
+ * @param motnum  - motor# (0 or 1)
+ * @param steps   - steps amount
+ * @param absmove - !=0 if steps are absolute position
+ * @return
+ */
+ttysend_status movemotor(int mcu, int motnum, int steps, int absmove){
+    if(mcu < 1 || mcu > 3 || motnum < 0 || motnum > 1) return SEND_OTHER;
+    char buf[32];
+    motor_state mstate;
+    if(!mot_getstatus(mcu, &mstate)) return SEND_ERR;
+    if(mstate.state[motnum] != STP_SLEEP) return SEND_ACTIVE;
+    int curpos = mstate.curpos[motnum];
+    if(curpos < 0){ // need to init
+        return SEND_NEEDINIT;
+    }
+    if(absmove){
+        if(motnum == 1){ // convert rotator angle to positive
+            int perrev = (mcu == 1) ? STEPSREV1 : STEPSREV2;
+            steps %= perrev;
+            if(steps < 0) steps += perrev;
+        }
+        if(steps < 0){
+            return SEND_NEGATMOVE;
+        }
+        steps -= curpos;
+    }
+    if(steps == 0){
+        return SEND_ZEROMOVE;
+    }
+    DBG("try to move motor%d of mcu %d for %d steps", motnum, mcu, steps);
+    snprintf(buf, 32, "%dM%dM%d", mcu, motnum, steps);
+    return tty_sendcmd(buf);
 }

@@ -4,7 +4,7 @@ libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
 Name: @PROJ@
-Description: Library with a lot of usefull snippets
+Description: MMPP (multi-mode photometer-polarimeter) control library
 Version: @VERSION@
 Libs: -L${libdir} -l@PROJ@
 Cflags: -I${includedir}
