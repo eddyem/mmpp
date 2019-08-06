@@ -5,5 +5,7 @@ include_directories(../)
 
 add_executable(testmove tmcmdlnopts.c tm.c)
 target_link_libraries(testmove -lusefull_macros)
+install(TARGETS testmove DESTINATION "bin")
 add_executable(wheels wheelscmdlnopts.c wheels.c)
 target_link_libraries(wheels -lusefull_macros)
+install(TARGETS wheels DESTINATION "bin")
