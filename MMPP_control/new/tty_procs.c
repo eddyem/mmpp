@@ -219,10 +219,13 @@ int tty_wait(){
                 if(chk1 == -1){
                     chk1 = 1;
                     ++failcount;
-                    printf("%39s", "failed");
+                    printf("%39s", "failed ");
                 }else printf("%s", bufo);
             }
-        }else if(!quiet) printf("%39s", "failed");
+        }else{
+            if(!quiet) printf("Pol: %39s", "failed ");
+            chk1 = 0;
+        }
         if(alive[2]){
             chk2 = parsestatus("2GS");
             if(!quiet){
@@ -230,11 +233,14 @@ int tty_wait(){
                 if(chk2 == -1){
                     chk2 = 1;
                     ++failcount;
-                    printf("%39s", "failed");
+                    printf("%38s", "failed");
                 }else printf("%s", bufo);
                 printf("   \r");
             }
-        }else if(!quiet) printf("%39s", "failed");
+        }else{
+            if(!quiet) printf(" || L/4: %38s\r", "failed");
+            chk2 = 0;
+        }
     }
     if(!quiet) printf("\n\n");
     if(failcount > 4){
@@ -280,7 +286,7 @@ static void ttystat(){
     if(alive[1]) chk1 = parsestatus("1GS");
     if(!quiet) printf("Pol: ");
     if(chk1 == -1){
-        if(!quiet) printf("%39s", "failed");
+        if(!quiet) printf("%39s", "failed ");
     }else printf("%s", bufo);
     char *val = keyval("ESW00");
     if(!val) val = " ";
@@ -297,7 +303,7 @@ static void ttystat(){
     if(alive[2]) chk2 = parsestatus("2GS");
     printf(" || L/4: ");
     if(chk2 == -1){
-        printf("%39s", "failed");
+        printf("%38s", "failed");
     }else printf("%s", bufo);
     printf("\n");
     sprintf(&buff[24], "|| ");
