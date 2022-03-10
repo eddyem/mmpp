@@ -1,8 +1,9 @@
 # run `make DEF=...` to add extra defines
 PROGRAM := MMPP_control
 LDFLAGS := -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,--discard-all
+LDFLAGS += -lusefull_macros
 SRCS := $(wildcard *.c)
-DEFINES := $(DEF) -DBAUD_RATE=B115200 -D_GNU_SOURCE -D_XOPEN_SOURCE=1111
+DEFINES := $(DEF) -DBAUD_RATE=9600 -D_GNU_SOURCE -D_XOPEN_SOURCE=1111
 #DEFINES += -DEBUG
 OBJDIR := mk
 CFLAGS += -O2 -Wall -Werror -Wextra -Wno-trampolines -std=gnu99

@@ -21,27 +21,48 @@
  *
  */
 
-#include "usefull_macros.h"
 #include "cmdlnopts.h"
-#include "tty_procs.h"
 #include "signal.h"
+#include "tty_procs.h"
+#include <stdio.h>
+#include <string.h>
+#include <usefull_macros.h>
+
+// All return states of main():
+enum{
+    RET_ALLOK = 0,
+    RET_NOTFOUND,       // none of MCU found or didn't found seeking MCU
+    RET_ONLYONE,        // only one MCU found
+    RET_COMMERR,        // communication error
+    RET_CANTINIT,       // can't init motors: error during initiation or some of motors are moving
+    RET_WAITERR,        // error occured during waiting procedure
+    RET_ERROR = 9,      // uncoverable error - from libsnippets
+    RET_HELPCALL = 255  // user call help (or give wrong parameter[s]) - from libsnippets
+};
 
 static glob_pars *G;
 
-void signals(int signo){
-    restore_tty();
-    exit(signo);
+/**
+ * We REDEFINE the default WEAK function of signal processing
+ */
+void __attribute__((noreturn)) signals(int sig){
+    if(sig){
+        signal(sig, SIG_IGN);
+        DBG("Get signal %d, quit.\n", sig);
+    }
+    if(G->pidfile) // remove unnesessary PID file
+        unlink(G->pidfile);
+    restore_console();
+    tty_close();
+    exit(sig);
 }
 
-static void MSG(const char *s1, const char *s2){
-    DBG("%s: %s", s1, s2);
-    if(quiet) return;
-    if(s1) green("%s: ", s1);
-    if(s2) printf("%s\n", s2);
+void __attribute__((noreturn)) iffound_default(pid_t pid){
+    ERRX("Another copy of this process found, pid=%d. Exit.", pid);
 }
 
 static double convangle(double val){
-    int X = val / 360.;
+    int X = (int)(val / 360.);
     val -= 360. * (double)X;
     return val;
 }
@@ -49,50 +70,42 @@ static double convangle(double val){
 /**
  * @return 1 if motor start moving else return 0
  */
-static int parsemotans(int ans, const char *prefix){
-    if(ans == 0) return 1;
-    else if(ans == -1) WARNX(_("%s moving error!"), prefix);
-    else if(ans == 1) WARNX(_("%s is on end-switch and can't move further"), prefix);
-    else if(ans == 2) WARNX(_("Can't move %s: bad steps amount or still moving"), prefix);
+static int parsemotans(ttysend_status ans, const char *prefix){
+    DBG("parse ans: %d (prefix: %s)", ans, prefix);
+    if(ans == SEND_ALLOK) return 1;
+    else if(ans == SEND_ERR) WARNX(_("%s moving error!"), prefix);
+    else if(ans == SEND_ESWITCH) WARNX(_("%s is on end-switch and can't move further"), prefix);
+    else if(ans == SEND_OTHER) WARNX(_("Can't move %s: bad steps amount or still moving"), prefix);
     return 0;
 }
 
 /**
  * move motor
- * @return waitforstop value
+ * @return 0 if motor can't move, else return 1
  */
-int movemotor(int mcu, int motnum, int steps, const char *name){
+/**
+ * @brief movemotor - move motor
+ * @param mcu     - MCU# (controller No, 1 or 2)
+ * @param motnum  - motor# (0 or 1)
+ * @param steps   - steps amount (
+ * @param name
+ * @return 0 if motor can't move, else return 1
+ */
+static int movemotor(int mcu, int motnum, int steps, const char *name){
     char buf[32];
     int curpos = mot_getpos(mcu, motnum);
     if(curpos == INT_MIN){
         WARNX(_("Can't get current %s position"), name);
         return 0;
     }
+    if(curpos < 0){ // need to init
+        WARNX(_("Init of %s failed"), name);
+        return 0;
+    }
     if(G->absmove){
-        if(curpos < 0){ // need to init
-            // check if we are on zero endswitch
-            int esw = mot_getesw(mcu, motnum);
-            if(esw == 0){ // move a little
-                sprintf(buf, "%dM%dM100", mcu, motnum);
-                tty_sendcmd(buf);
-                tty_wait();
-            }
-            sprintf(buf, "%dM%dM-40000", mcu, motnum);
-            if(tty_sendcmd(buf)){
-                WARNX(_("Can't initialize %s"), name);
-                return 0;
-            }
-            tty_wait(); // wait for initialisation ends
-            handshake();
-            curpos = mot_getpos(mcu, motnum);
-            if(curpos){
-                WARNX(_("Can't return to zero"));
-                return 0;
-            }
-        }
         if(steps < 0){
             if(motnum == 1){
-                steps += (mcu == 1) ? 36000 : 28800; // convert rotator angle to positive
+                steps += (mcu == 1) ? STEPSREV1 : STEPSREV2; // convert rotator angle to positive
             }else{
                 WARNX(_("Can't move to negative position"));
                 return 0;
@@ -101,61 +114,90 @@ int movemotor(int mcu, int motnum, int steps, const char *name){
         steps -= curpos;
     }
     if(steps == 0){
-        MSG(name, "already at position");
+        MSG(name, _("already at position"));
         return 0;
     }
     DBG("try to move motor%d of mcu %d for %d steps", motnum, mcu, steps);
     snprintf(buf, 32, "%dM%dM%d", mcu, motnum, steps);
-    int ans = tty_sendcmd(buf);
+    ttysend_status ans = tty_sendcmd(buf);
     return parsemotans(ans, name);
 }
 
 int main(int argc, char **argv){
 //    char cmd[32];
     int waitforstop = 0;
+    int rtn_status = RET_ALLOK;
+    initial_setup();
     signal(SIGTERM, signals);   // kill (-15)
     signal(SIGINT, signals);    // ctrl+C
     signal(SIGQUIT, SIG_IGN);   // ctrl+\   .
     signal(SIGTSTP, SIG_IGN);   // ctrl+Z
     setbuf(stdout, NULL);
-    initial_setup();
     G = parse_args(argc, argv);
-    tty_init(G->comdev);
-    handshake(); // test connection & get all positions
+    check4running(NULL, G->pidfile);
+    DBG("Try to open serial %s", G->comdev);
+    if(tty_tryopen(G->comdev, G->speed)){
+        ERR(_("Can't open %s with speed %d. Exit."), G->comdev, G->speed);
+    }
+
+    if(handshake()) signals(RET_NOTFOUND); // test connection & get all positions
+    if(G->waitold){
+        if(tty_wait()) signals(RET_WAITERR);
+        handshake();
+    }
     if(G->showtemp){
-        tty_showtemp();
+        if(tty_showtemp() != 2) rtn_status = RET_ONLYONE;
     }
     if(G->stopall){ // stop everything before analyze other commands
-        tty_sendcmd("1M0S");
-        tty_sendcmd("1M1S");
-        tty_sendcmd("2M0S");
-        tty_sendcmd("2M1S");
+        if(tty_stopall()) rtn_status = RET_COMMERR;
+        else MSG(_("All motors stopped"), NULL);
     }
     if(G->sendraw){
         MSG(_("Send raw string"), G->sendraw);
         char *got = tty_sendraw(G->sendraw);
         if(got){
-            if(!quiet) green("Receive:\n");
-            printf("%s", got);
+            MSG(_("Receive"), got);
+            if(quiet) printf("%s", got);
         }else WARNX(_("Nothing received"));
     }
-    if(G->rot1angle > -999.){
-        double angle = convangle(G->rot1angle);
-        int steps = (int)(100. * angle);
-        waitforstop = movemotor(1, 1, steps, "polaroid");
+    if(G->rot1angle > -999. || G->rot2angle > -999. || G->l1steps != INT_MAX || G->l2steps != INT_MAX){
+        // all other commands are tied with moving, so check if motors are inited
+        if(init_motors()) rtn_status = RET_CANTINIT;
+        else{
+            if(G->rot1angle > -999.){
+                double angle = convangle(G->rot1angle);
+                int steps = (int)((STEPSREV1/360.) * angle);
+                waitforstop = movemotor(1, 1, steps, "polaroid");
+            }
+            if(G->rot2angle > -999.){
+                double angle = convangle(G->rot2angle);
+                int steps = (int)((STEPSREV2/360.) * angle);
+                waitforstop = movemotor(2, 1, steps, "lambda/4");
+            }
+            if(G->l1steps != INT_MAX){
+                waitforstop = movemotor(1, 0, G->l1steps, "polaroid stage");
+            }
+            if(G->l2steps != INT_MAX){
+                waitforstop = movemotor(2, 0, G->l2steps, "lambda/4 stage");
+            }
+        }
     }
-    if(G->rot2angle > -999.){
-        double angle = convangle(G->rot2angle);
-        int steps = (int)(80. * angle);
-        waitforstop = movemotor(2, 1, steps, "lambda/4");
-    }
-    if(G->l1steps != INT_MAX){
-        waitforstop = movemotor(1, 0, G->l1steps, "polaroid stage");
-    }
-    if(G->l2steps != INT_MAX){
-        waitforstop = movemotor(2, 0, G->l2steps, "lambda/4 stage");
-    }
-    if((waitforstop && !G->dontwait) || G->waitold) tty_wait();
+    if((waitforstop && !G->dontwait)) if(tty_wait()) rtn_status = RET_WAITERR;
     if(G->getstatus) tty_getstatus();
-    signals(0);
+    if(G->reset){
+        int **N = G->reset;
+        while(*N){
+            char cmd[3];
+            if(**N < 1 || **N > 2){
+                WARNX(_("Wrong MCU number (%d)"), **N);
+            }else{
+                if(!quiet) green("Reset controller #%d\n", **N);
+                snprintf(cmd, 3, "%dR", **N);
+                ttysend_status _U_ rt = tty_sendcmd(cmd);
+                DBG("reset %d, result: %d", **N, rt);
+            }
+            ++N;
+        }
+    }
+    signals(rtn_status);
 }

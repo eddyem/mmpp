@@ -20,10 +20,11 @@
  */
 
 #pragma once
-#ifndef __CMDLNOPTS_H__
-#define __CMDLNOPTS_H__
+#ifndef CMDLNOPTS_H__
+#define CMDLNOPTS_H__
 
-#include "parseargs.h"
+#include <stdint.h>
+#include <usefull_macros.h>
 
 /*
  * here are some typedef's for global data
@@ -32,8 +33,10 @@ typedef struct{
     int showtemp;       // show temperatures of both MCU
     char *comdev;       // TTY device
     char *sendraw;      // send RAW string
+    char *pidfile;      // pid file name
     double rot1angle;   // rotator 1 angle
     double rot2angle;   // rotator 2 angle
+    int speed;          // TTY speed
     int getstatus;      // get both MCU status
     int waitold;        // wait for previous moving ends
     int dontwait;       // don't wait for moving end
@@ -41,12 +44,14 @@ typedef struct{
     int l2steps;        // move linear stage 2 (L/4) for N steps
     int absmove;        // absolute move (to given position from zero-esw)
     int stopall;        // stop all moving
+    int **reset;        // reset given MCU's
 } glob_pars;
-
 
 // default & global parameters
 extern glob_pars const Gdefault;
 extern int quiet;
 
 glob_pars *parse_args(int argc, char **argv);
-#endif // __CMDLNOPTS_H__
+void MSG(const char *s1, const char *s2);
+
+#endif // CMDLNOPTS_H__

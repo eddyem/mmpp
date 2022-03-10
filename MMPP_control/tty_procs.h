@@ -1,5 +1,4 @@
 /*
- *                                                                                                  geany_encoding=koi8-r
  * tty_procs.h
  *
  * Copyright 2018 Edward V. Emelianov <eddy@sao.ru, edward.emelianoff@gmail.com>
@@ -20,14 +19,36 @@
  * MA 02110-1301, USA.
  *
  */
+#pragma once
+#ifndef TTY_PROCS_H__
+#define TTY_PROCS_H__
 
 #include <limits.h>
 
+// amount of tries to establish handshake
+#define HANDSHAKE_TRIES     (10)
+// steps per full revolution for both rotation stages (1 - polaroid, 2 - waveplate)
+#define STEPSREV1           (36000)
+#define STEPSREV2           (28800)
+
+typedef enum{
+    SEND_ERR,
+    SEND_ALLOK,
+    SEND_ESWITCH,
+    SEND_OTHER
+} ttysend_status;
+
+int tty_tryopen(char *dev, int spd);
+void tty_close();
 char* tty_sendraw(char *string);
-void tty_wait();
-int tty_sendcmd(char *cmd);
-void tty_showtemp();
+int tty_wait();
+ttysend_status tty_sendcmd(char *cmd);
+int tty_showtemp();
+int tty_stopall();
 void tty_getstatus();
-void handshake();
+int handshake();
 int mot_getpos(int mcu, int motor);
 int mot_getesw(int mcu, int motor);
+int init_motors();
+
+#endif // TTY_PROCS_H__

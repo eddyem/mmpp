@@ -85,7 +85,7 @@ void iwdg_setup(){
 }
 
 int main(void){
-    //uint32_t lastT = 0;
+    uint32_t lastT = 0;
     uint32_t ostctr = 0;
     #if 0
     //def EBUG
@@ -104,9 +104,10 @@ int main(void){
     //pin_set(GPIOA, 1<<5); // clear extern LED
     while (1){
         IWDG->KR = IWDG_REFRESH; // refresh watchdog
-        /*if(lastT > Tms || Tms - lastT > 499){
+        if(lastT > Tms || Tms - lastT > 499){
+            sendbuf();
             lastT = Tms;
-        }*/
+        }
         if(usart1rx()){ // usart1 received data, store in in buffer
             if(usart1_getline(&txt)){
                 ret = process_command(txt);

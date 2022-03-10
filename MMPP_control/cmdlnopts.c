@@ -18,14 +18,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
+
+#include "cmdlnopts.h"
 #include <assert.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <math.h>
-#include <limits.h>
-#include "cmdlnopts.h"
-#include "usefull_macros.h"
 
 /*
  * here are global parameters initialisation
@@ -40,6 +40,8 @@ int quiet = 0; // less messages @ stdout
 glob_pars const Gdefault = {
      .showtemp = 0
     ,.comdev = "/dev/ttyUSB0"
+    ,.pidfile = "/tmp/MMPP_control.pid"
+    ,.speed = BAUD_RATE
     ,.rot1angle = -1000.
     ,.rot2angle = -1000.
     ,.l1steps = INT_MAX
@@ -50,20 +52,23 @@ glob_pars const Gdefault = {
  * Define command line options by filling structure:
  *  name    has_arg flag    val     type        argptr          help
 */
-myoption cmdlnopts[] = {
+static myoption cmdlnopts[] = {
     {"help",    NO_ARGS,    NULL,   'h',    arg_none,   APTR(&help),        N_("show this help")},
     {"quiet",   NO_ARGS,    NULL,   'q',    arg_none,   APTR(&quiet),       N_("don't show anything @screen from stdout")},
+    {"absmove", NO_ARGS,    NULL,   'A',    arg_none,   APTR(&G.absmove),   N_("absolute move (without this flag moving is relative)")},
     {"temp",    NO_ARGS,    NULL,   't',    arg_none,   APTR(&G.showtemp),  N_("show temperature of both MCU")},
     {"comdev",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.comdev),    N_("terminal device filename")},
     {"sendraw", NEED_ARG,   NULL,   'a',    arg_string, APTR(&G.sendraw),   N_("send RAW string to port and read the answer")},
+    {"reset",   MULT_PAR,   NULL,   'E',    arg_int,    APTR(&G.reset),     N_("reset given mcu (may be included several times)")},
     {"rot1",    NEED_ARG,   NULL,   'R',    arg_double, APTR(&G.rot1angle), N_("rotate polaroid to given angle")},
     {"rot2",    NEED_ARG,   NULL,   'r',    arg_double, APTR(&G.rot2angle), N_("rotate lambda/4 to given angle")},
     {"status",  NO_ARGS,    NULL,   's',    arg_none,   APTR(&G.getstatus), N_("get device status")},
-    {"wait",    NO_ARGS,    NULL,   'w',    arg_none,   APTR(&G.waitold),   N_("wait while all moving ends")},
-    {"async",   NO_ARGS,    NULL,   'y',    arg_none,   APTR(&G.dontwait),  N_("asyncronous moving - don't wait")},
-    {"lin1",    NEED_ARG,   NULL,   'L',    arg_int,    APTR(&G.l1steps),   N_("move linear stage 1 (polaroid) to N steps")},
-    {"lin2",    NEED_ARG,   NULL,   'l',    arg_int,    APTR(&G.l2steps),   N_("move linear stage 2 (L/4) to N steps")},
-    {"absmove", NO_ARGS,    NULL,   'A',    arg_none,   APTR(&G.absmove),   N_("absolute move (without this flag moving is relative)")},
+    {"baudrate",NEED_ARG,   NULL,   'b',    arg_int,    APTR(&G.speed),     N_("TTY baudrate")},
+    {"wait",    NO_ARGS,    NULL,   'w',    arg_none,   APTR(&G.waitold),   N_("wait while all previous moving ends")},
+    {"async",   NO_ARGS,    NULL,   'y',    arg_none,   APTR(&G.dontwait),  N_("asynchronous moving - don't wait")},
+    {"lin1",    NEED_ARG,   NULL,   'L',    arg_int,    APTR(&G.l1steps),   N_("move polaroid linear stage to N steps")},
+    {"lin2",    NEED_ARG,   NULL,   'l',    arg_int,    APTR(&G.l2steps),   N_("move wave-plate linear stage to N steps")},
+    {"pidfile", NEED_ARG,   NULL,   'p',    arg_string, APTR(&G.pidfile),   N_("PID-file name")},
     {"stop",    NO_ARGS,    NULL,   'S',    arg_none,   APTR(&G.stopall),   N_("stop any moving")},
     end_option
 };
@@ -91,3 +96,16 @@ glob_pars *parse_args(int argc, char **argv){
     return &G;
 }
 
+/**
+ * @brief MSG show coloured message if `quiet` not set
+ *          !! This function adds trailing '\n' to message
+ * @param s1 - green part of message (may be null)
+ * @param s2 - normal colored part of messate (may be null)
+ */
+void MSG(const char *s1, const char *s2){
+    if(quiet) return;
+    if(s1){
+        green("%s%s", s1, s2 ? ": " : "\n");
+    }
+    if(s2) printf("%s\n", s2);
+}
